@@ -7,6 +7,7 @@ use winit::{
 
 mod state;
 use state::State;
+mod model;
 
 #[tokio::main]
 async fn main() {
