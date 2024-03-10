@@ -1,5 +1,5 @@
 [profile.dev]
-strip = false
+strip = true
 opt-level = 1
 
 [profile.release]
