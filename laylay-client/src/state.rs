@@ -1,6 +1,6 @@
 use std::{error::Error, fmt::Display};
 
-use wgpu::{util::DeviceExt, SurfaceTargetUnsafe};
+use wgpu::{util::DeviceExt, PipelineCompilationOptions, SurfaceTargetUnsafe};
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::model;
@@ -99,6 +99,7 @@ impl<'w> State<'w> {
             label: Some("Render Pipeline"),
             layout: Some(&render_pipeline_layout),
             vertex: wgpu::VertexState {
+                compilation_options: PipelineCompilationOptions::default(),
                 module: &shader,
                 entry_point: "vs_main", // 1.
                 buffers: &[],           // 2.
@@ -106,6 +107,7 @@ impl<'w> State<'w> {
             fragment: Some(wgpu::FragmentState {
                 // 3.
                 module: &shader,
+                compilation_options: PipelineCompilationOptions::default(),
                 entry_point: "fs_main",
                 targets: &[Some(wgpu::ColorTargetState {
                     // 4.

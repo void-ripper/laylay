@@ -11,5 +11,10 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = ["client", "server"]
+members = [
+    "laylay-client",
+    "laylay-server",
+    "laylay-common",
+    "laylay-package"
+]
 resolver = "2"
