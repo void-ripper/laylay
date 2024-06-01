@@ -1,12 +1,17 @@
 #[cfg(target_os = "android")]
-use winit::{ event_loop::{ControlFlow, EventLoop}, platform::android::{activity::AndroidApp, EventLoopBuilderExtAndroid}};
+use winit::{
+    event_loop::{ControlFlow, EventLoop},
+    platform::android::{activity::AndroidApp, EventLoopBuilderExtAndroid},
+};
 
-#[cfg(target_os = "android")]
 mod app;
-#[cfg(target_os = "android")]
-mod state;
-#[cfg(target_os = "android")]
+mod context;
+mod errors;
+mod logger;
 mod model;
+mod state;
+
+pub use app::App;
 
 #[cfg(target_os = "android")]
 #[no_mangle]

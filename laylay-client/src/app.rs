@@ -10,7 +10,7 @@ use winit::{
     window::Window,
 };
 
-use crate::{logger::Logger, state::State};
+use crate::{context::xr::XrContext, logger::Logger, state::State};
 
 
 pub struct App<'a> {
@@ -18,6 +18,7 @@ pub struct App<'a> {
     prikey: laylay_common::SecretKey,
     runtime: Arc<Runtime>,
     state: Option<State<'a>>,
+    xr: Option<XrContext>,
 }
 
 impl<'a> App<'a> {
@@ -30,6 +31,7 @@ impl<'a> App<'a> {
             prikey: prikey.clone(),
             runtime: runtime.clone(),
             state: None,
+            xr: None,
         };
 
         app.runtime.block_on(async {
