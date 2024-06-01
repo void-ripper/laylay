@@ -18,7 +18,7 @@ struct FieldCollect {
 }
 
 impl Visit for FieldCollect {
-    fn record_debug(&mut self, field: &Field, value: &dyn std::fmt::Debug) {
+    fn record_debug(&mut self, _field: &Field, value: &dyn std::fmt::Debug) {
         self.data.push(format!("{:?}", value));
     }
 }
@@ -34,17 +34,17 @@ impl Logger {
 }
 
 impl Subscriber for Logger {
-    fn enabled(&self, metadata: &tracing::Metadata<'_>) -> bool {
+    fn enabled(&self, _metadata: &tracing::Metadata<'_>) -> bool {
         true
     }
 
-    fn new_span(&self, span: &span::Attributes<'_>) -> span::Id {
+    fn new_span(&self, _span: &span::Attributes<'_>) -> span::Id {
         span::Id::from_u64(self.span_id_pool.fetch_add(1, Ordering::SeqCst))
     }
 
-    fn record(&self, span: &span::Id, values: &span::Record<'_>) {}
+    fn record(&self, _span: &span::Id, _values: &span::Record<'_>) {}
 
-    fn record_follows_from(&self, span: &span::Id, follows: &span::Id) {}
+    fn record_follows_from(&self, _span: &span::Id, _follows: &span::Id) {}
 
     fn event(&self, event: &tracing::Event<'_>) {
         let meta = event.metadata();
@@ -66,7 +66,7 @@ impl Subscriber for Logger {
         });
     }
 
-    fn enter(&self, span: &span::Id) {}
+    fn enter(&self, _span: &span::Id) {}
 
-    fn exit(&self, span: &span::Id) {}
+    fn exit(&self, _span: &span::Id) {}
 }
