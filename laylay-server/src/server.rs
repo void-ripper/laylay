@@ -1,6 +1,6 @@
 use std::{collections::HashMap, path::PathBuf, sync::Arc};
 
-use laylay_common::{get_private_key, Bytes, Message, SecretKey, Version};
+use laylay_common::{get_private_key, Bytes, Info, Message, SecretKey, Version};
 use tokio::sync::RwLock;
 
 use crate::{client::Client, database::Database, errors::ServerErrors};
@@ -18,6 +18,7 @@ impl ServerContext {
         let greeting = Message::Greeting {
             pubkey: prikey.public_key().to_sec1_bytes().into(),
             version: Version::get(),
+            info: Info::new(),
         };
 
         Ok(Arc::new(Self {

@@ -1089,6 +1089,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
 
 [[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
 name = "hexf-parse"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1256,7 +1262,6 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
- "uname",
  "wgpu",
  "winit",
 ]
@@ -1272,6 +1277,7 @@ dependencies = [
  "k256",
  "rand",
  "tokio",
+ "uname",
 ]
 
 [[package]]
@@ -1288,6 +1294,7 @@ name = "laylay-server"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "hex",
  "laylay-common",
  "parking_lot",
  "rusqlite",

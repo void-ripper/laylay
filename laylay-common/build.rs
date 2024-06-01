@@ -1,6 +1,7 @@
 fn main() {
     let code = format!(
         r#"use borsh::{{BorshDeserialize, BorshSerialize}};
+use std::fmt::Display;
 
 #[derive(BorshSerialize, BorshDeserialize)]
 pub struct Version {{
@@ -22,6 +23,17 @@ impl Version {{
     
     pub fn higher(&self, o: &Version) -> bool {{
         self.major > o.major || self.minor > o.minor || self.patch > o.patch
+    }}
+}}
+
+
+impl Display for Version {{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {{
+        write!(
+            f,
+            "{{}}.{{}}.{{}} {{}}",
+            self.major, self.minor, self.patch, self.target
+        )
     }}
 }}
 "#,

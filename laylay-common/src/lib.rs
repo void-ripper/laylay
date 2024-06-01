@@ -7,9 +7,14 @@ pub use k256::{PublicKey, SecretKey};
 use rand::{rngs::OsRng, RngCore};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
-    net::{tcp::{OwnedReadHalf, OwnedWriteHalf}, TcpStream},
+    net::{
+        tcp::{OwnedReadHalf, OwnedWriteHalf},
+        TcpStream,
+    },
 };
 
+mod info;
+pub use info::Info;
 mod version;
 pub use version::Version;
 
@@ -96,8 +101,20 @@ pub async fn read(shared: &[u8], rx: &mut OwnedReadHalf) -> Result<Message, Box<
 
 #[derive(BorshSerialize, BorshDeserialize)]
 pub enum Message {
-    Greeting { pubkey: Bytes, version: Version },
-    Log { msg: String, level: String, target: String },
-    JoinLobbby { name: String },
-    LeaveLobby { name: String },
+    Greeting {
+        pubkey: Bytes,
+        version: Version,
+        info: Info,
+    },
+    Log {
+        msg: String,
+        level: String,
+        target: String,
+    },
+    JoinLobbby {
+        name: String,
+    },
+    LeaveLobby {
+        name: String,
+    },
 }

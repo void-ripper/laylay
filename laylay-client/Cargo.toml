@@ -58,7 +58,6 @@ tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 wgpu = "0.20.0"
 laylay-common = { path = "../laylay-common" }
-uname = "0.1.1"
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 winit = "0.30.0"

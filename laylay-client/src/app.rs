@@ -1,6 +1,6 @@
-use std::sync::Arc;
+use std::{path::PathBuf, sync::Arc};
 
-use laylay_common::Message;
+use laylay_common::{Info, Message, Version};
 use mlua::Lua;
 use tokio::{net::TcpStream, runtime::Runtime, sync::mpsc};
 use winit::{
@@ -12,7 +12,6 @@ use winit::{
 
 use crate::{context::xr::XrContext, logger::Logger, state::State};
 
-
 pub struct App<'a> {
     lua: Lua,
     prikey: laylay_common::SecretKey,
@@ -23,7 +22,18 @@ pub struct App<'a> {
 
 impl<'a> App<'a> {
     pub fn new() -> Self {
-        let prikey = laylay_common::get_private_key("data".into()).unwrap();
+        let folder = if cfg!(target_os = "android") {
+            "/sdcard/Documents/laylay/"
+        } else {
+            "data/"
+        };
+        let folder = PathBuf::from(folder);
+
+        if !folder.exists() {
+            std::fs::create_dir_all(&folder).unwrap();
+        }
+
+        let prikey = laylay_common::get_private_key(folder).unwrap();
         let public = prikey.public_key().to_sec1_bytes();
         let runtime = Arc::new(Runtime::new().unwrap());
         let app = Self {
@@ -36,14 +46,22 @@ impl<'a> App<'a> {
 
         app.runtime.block_on(async {
             let mut stream = TcpStream::connect(("127.0.0.1", 33033)).await.unwrap();
-            let greeting = laylay_common::Message::Greeting {
+            let greeting = Message::Greeting {
                 pubkey: public.into(),
-                version: laylay_common::Version::get(),
+                version: Version::get(),
+                info: Info::new(),
             };
-            laylay_common::write_greeting(&mut stream, &greeting).await.unwrap();
+            laylay_common::write_greeting(&mut stream, &greeting)
+                .await
+                .unwrap();
 
             let ret = laylay_common::read_greeting(&mut stream).await.unwrap();
-            if let Message::Greeting { pubkey, version } = ret {
+            if let Message::Greeting {
+                pubkey,
+                version,
+                info,
+            } = ret
+            {
                 let shared = laylay_common::shared_secret(pubkey, &prikey);
                 let (mut rx, mut tx) = stream.into_split();
                 let (txch, mut rxch) = mpsc::channel::<Message>(10);

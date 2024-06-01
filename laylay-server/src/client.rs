@@ -1,8 +1,10 @@
-
 use std::sync::Arc;
 
 use laylay_common::{read_greeting, shared_secret, write_greeting, Bytes, Message, Version};
-use tokio::{net::TcpStream, sync::mpsc::{channel, Sender}};
+use tokio::{
+    net::TcpStream,
+    sync::mpsc::{channel, Sender},
+};
 
 use crate::{errors::ServerErrors, server::ServerContext};
 
@@ -14,15 +16,35 @@ pub struct Client {
 }
 
 impl Client {
-    pub async fn new(ctx: Arc<ServerContext>, mut stream: TcpStream) -> Result<Arc<Self>, ServerErrors> {
+    pub async fn new(
+        ctx: Arc<ServerContext>,
+        mut stream: TcpStream,
+    ) -> Result<Arc<Self>, ServerErrors> {
         write_greeting(&mut stream, &ctx.greeting).await?;
-        
+
         let msg = read_greeting(&mut stream).await?;
 
-        if let Message::Greeting { pubkey, version } = msg {
+        if let Message::Greeting {
+            pubkey,
+            version,
+            info,
+        } = msg
+        {
+            tracing::info!(
+                "greeting {}\nversion: {}\ninfo: {}",
+                hex::encode(&pubkey),
+                version,
+                info
+            );
+
             let (mut rx, mut tx) = stream.into_split();
             let (txch, mut rxch) = channel(10);
-            let client = Arc::new(Self { server: ctx.clone(), pubkey: pubkey.clone(), version, txch });
+            let client = Arc::new(Self {
+                server: ctx.clone(),
+                pubkey: pubkey.clone(),
+                version,
+                txch,
+            });
             let shared = shared_secret(pubkey.clone(), &ctx.prikey);
 
             let shared0 = shared.clone();
@@ -30,7 +52,8 @@ impl Client {
             tokio::spawn(async move {
                 loop {
                     let ret = laylay_common::read(&shared0, &mut rx)
-                        .await.map_err(|e| ServerErrors::Internal(e.to_string()));
+                        .await
+                        .map_err(|e| ServerErrors::Internal(e.to_string()));
 
                     match ret {
                         Ok(msg) => {
