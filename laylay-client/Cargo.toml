@@ -53,11 +53,12 @@ bytemuck = { version = "1.16.0", features = ["derive"] }
 gltf = "1.4.1"
 mlua = { version = "0.9.8", features = ["lua54", "parking_lot", "vendored"] }
 openxr = "0.18.0"
-tokio = { version = "1.37.0", features = ["full"] }
+tokio = { version = "1.38.0", features = ["full"] }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 wgpu = "0.20.0"
 laylay-common = { path = "../laylay-common" }
+uname = "0.1.1"
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
 winit = "0.30.0"
