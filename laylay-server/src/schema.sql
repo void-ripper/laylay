@@ -40,7 +40,7 @@ CREATE TABLE log_level (
     name VARCHAR UNIQUE
 );
 
-INSERT INTO log_level VALUES (0, 'DEBUG'), (1, 'INFO'), (2, 'WARN'), (3, 'ERROR');
+INSERT INTO log_level VALUES (0, 'TRACE'), (1, 'DEBUG'), (2, 'INFO'), (3, 'WARN'), (4, 'ERROR');
 
 CREATE TABLE logs (
     id INTEGER PRIMARY KEY,

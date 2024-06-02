@@ -16,17 +16,25 @@ pub use app::App;
 #[cfg(target_os = "android")]
 #[no_mangle]
 fn android_main(app: AndroidApp) {
-    let ev_loop = EventLoop::builder()
-        .with_android_app(app.clone())
-        .build()
-        .unwrap();
-    let mut myapp = app::App::new();
+    let myapp = app::App::new();
 
-    ev_loop.set_control_flow(ControlFlow::Poll);
+    match myapp {
+        Ok(mut myapp) => {
+            let ev_loop = EventLoop::builder()
+                .with_android_app(app.clone())
+                .build()
+                .unwrap();
 
-    let ret = ev_loop.run_app(&mut myapp);
+            ev_loop.set_control_flow(ControlFlow::Poll);
 
-    if let Err(e) = ret {
-        tracing::error!("{e}");
+            let ret = ev_loop.run_app(&mut myapp);
+
+            if let Err(e) = ret {
+                std::fs::write("/sdcard/Documents/laylay/error.txt", format!("{e}")).unwrap();
+            }
+        }
+        Err(e) => {
+            std::fs::write("/sdcard/Documents/laylay/error.txt", format!("{e}")).unwrap();
+        }
     }
 }

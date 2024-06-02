@@ -5,7 +5,10 @@ use std::sync::{
 
 use laylay_common::Message;
 use tokio::{runtime::Runtime, sync::mpsc::Sender};
-use tracing::{field::{Field, Visit}, span, Subscriber};
+use tracing::{
+    field::{Field, Visit},
+    span, Level, Subscriber,
+};
 
 pub struct Logger {
     span_id_pool: AtomicU64,
@@ -34,8 +37,8 @@ impl Logger {
 }
 
 impl Subscriber for Logger {
-    fn enabled(&self, _metadata: &tracing::Metadata<'_>) -> bool {
-        true
+    fn enabled(&self, metadata: &tracing::Metadata<'_>) -> bool {
+        metadata.level() > &Level::TRACE
     }
 
     fn new_span(&self, _span: &span::Attributes<'_>) -> span::Id {
@@ -50,7 +53,7 @@ impl Subscriber for Logger {
         let meta = event.metadata();
         let target = meta.target().to_string();
         if target.contains("polling") {
-            return
+            return;
         }
 
         let mut data = FieldCollect { data: Vec::new() };
@@ -59,7 +62,13 @@ impl Subscriber for Logger {
         let level = meta.level().as_str().to_string();
         let txch = self.txch.clone();
         self.runtime.spawn(async move {
-            let ret = txch.send(Message::Log { msg: data.data.join(" "), level, target, }).await;
+            let ret = txch
+                .send(Message::Log {
+                    msg: data.data.join(" "),
+                    level,
+                    target,
+                })
+                .await;
             if let Err(e) = ret {
                 tracing::error!("{e}");
             }

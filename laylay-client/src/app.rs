@@ -10,7 +10,7 @@ use winit::{
     window::Window,
 };
 
-use crate::{context::xr::XrContext, logger::Logger, state::State};
+use crate::{context::xr::XrContext, errors::ClientError, logger::Logger, state::State};
 
 pub struct App<'a> {
     lua: Lua,
@@ -21,7 +21,7 @@ pub struct App<'a> {
 }
 
 impl<'a> App<'a> {
-    pub fn new() -> Self {
+    pub fn new() -> Result<Self, ClientError> {
         let folder = if cfg!(target_os = "android") {
             "/sdcard/Documents/laylay/"
         } else {
@@ -30,12 +30,12 @@ impl<'a> App<'a> {
         let folder = PathBuf::from(folder);
 
         if !folder.exists() {
-            std::fs::create_dir_all(&folder).unwrap();
+            std::fs::create_dir_all(&folder)?;
         }
 
-        let prikey = laylay_common::get_private_key(folder).unwrap();
+        let prikey = laylay_common::get_private_key(folder)?;
         let public = prikey.public_key().to_sec1_bytes();
-        let runtime = Arc::new(Runtime::new().unwrap());
+        let runtime = Arc::new(Runtime::new()?);
         let app = Self {
             lua: Lua::new(),
             prikey: prikey.clone(),
@@ -44,18 +44,21 @@ impl<'a> App<'a> {
             xr: None,
         };
 
-        app.runtime.block_on(async {
-            let mut stream = TcpStream::connect(("127.0.0.1", 33033)).await.unwrap();
+        let ret: Result<(), ClientError> = app.runtime.block_on(async {
+            let addr = if cfg!(target_os = "android") {
+                "192.168.1.9"
+            } else {
+                "127.0.0.1"
+            };
+            let mut stream = TcpStream::connect((addr, 33033)).await?;
             let greeting = Message::Greeting {
                 pubkey: public.into(),
                 version: Version::get(),
                 info: Info::new(),
             };
-            laylay_common::write_greeting(&mut stream, &greeting)
-                .await
-                .unwrap();
+            laylay_common::write_greeting(&mut stream, &greeting).await?;
 
-            let ret = laylay_common::read_greeting(&mut stream).await.unwrap();
+            let ret = laylay_common::read_greeting(&mut stream).await?;
             if let Message::Greeting {
                 pubkey,
                 version,
@@ -66,7 +69,7 @@ impl<'a> App<'a> {
                 let (mut rx, mut tx) = stream.into_split();
                 let (txch, mut rxch) = mpsc::channel::<Message>(10);
 
-                tracing::subscriber::set_global_default(Logger::new(runtime, txch)).unwrap();
+                tracing::subscriber::set_global_default(Logger::new(runtime, txch))?;
 
                 let shared0 = shared.clone();
                 tokio::spawn(async move {
@@ -89,9 +92,13 @@ impl<'a> App<'a> {
                     }
                 });
             }
+
+            Ok(())
         });
 
-        app
+        ret?;
+
+        Ok(app)
     }
 }
 
