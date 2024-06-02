@@ -9,7 +9,6 @@ mod context;
 mod errors;
 mod logger;
 mod model;
-mod state;
 
 pub use app::App;
 

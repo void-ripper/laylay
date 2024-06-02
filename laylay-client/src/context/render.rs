@@ -6,17 +6,17 @@ use winit::{dpi::PhysicalSize, window::Window};
 use crate::model;
 
 #[derive(Debug)]
-pub enum StateError {}
+pub enum RenderContextError {}
 
-impl Error for StateError {}
+impl Error for RenderContextError {}
 
-impl Display for StateError {
+impl Display for RenderContextError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
-pub struct State<'w> {
+pub struct RenderContext<'w> {
     pub surface: wgpu::Surface<'w>,
     pub device: wgpu::Device,
     pub queue: wgpu::Queue,
@@ -27,7 +27,7 @@ pub struct State<'w> {
     pub vertex_buffer: wgpu::Buffer,
 }
 
-impl<'w> State<'w> {
+impl<'w> RenderContext<'w> {
     pub async fn new(win: Window) -> Self {
         let size = win.inner_size();
 

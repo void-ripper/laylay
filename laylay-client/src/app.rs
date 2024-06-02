@@ -10,13 +10,17 @@ use winit::{
     window::Window,
 };
 
-use crate::{context::xr::XrContext, errors::ClientError, logger::Logger, state::State};
+use crate::{
+    context::{render::RenderContext, xr::XrContext},
+    errors::ClientError,
+    logger::Logger,
+};
 
 pub struct App<'a> {
     lua: Lua,
     prikey: laylay_common::SecretKey,
     runtime: Arc<Runtime>,
-    state: Option<State<'a>>,
+    state: Option<RenderContext<'a>>,
     xr: Option<XrContext>,
 }
 
@@ -108,7 +112,7 @@ impl<'a> ApplicationHandler for App<'a> {
             .create_window(Window::default_attributes())
             .unwrap();
         let state = self.runtime.block_on(async {
-            let state = State::new(window).await;
+            let state = RenderContext::new(window).await;
             state
         });
         self.state = Some(state);
