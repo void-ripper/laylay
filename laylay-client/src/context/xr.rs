@@ -2,7 +2,6 @@ use openxr::{ExtensionSet, Instance, SystemId};
 
 use crate::errors::ClientError;
 
-
 pub struct XrContext {
     instance: Instance,
     system: SystemId,
@@ -11,9 +10,14 @@ pub struct XrContext {
 impl XrContext {
     pub fn new() -> Result<Self, ClientError> {
         let xr_entry = unsafe { openxr::Entry::load()? };
+        let aviable = xr_entry.enumerate_extensions()?;
         let mut extensions = ExtensionSet::default();
 
-        // extensions.khr_vulkan_enable = true;
+        if !aviable.khr_vulkan_enable2 {
+            tracing::warn!("khr_vulkan_enable2 NOT supported");
+        }
+
+        extensions.khr_vulkan_enable2 = aviable.khr_vulkan_enable2;
 
         #[cfg(target_os = "android")]
         {
@@ -21,7 +25,7 @@ impl XrContext {
             xr_entry.initialize_android_loader()?;
         }
 
-        tracing::info!("aviable exntensions: {:?}", xr_entry.enumerate_extensions()?);
+        tracing::info!("aviable exntensions: {:?}", aviable);
 
         let xr_app_info = openxr::ApplicationInfo {
             application_name: "LayLay",

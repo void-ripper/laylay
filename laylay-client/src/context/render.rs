@@ -1,20 +1,7 @@
-use std::{error::Error, fmt::Display};
-
 use wgpu::{util::DeviceExt, PipelineCompilationOptions, SurfaceTargetUnsafe};
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::model;
-
-#[derive(Debug)]
-pub enum RenderContextError {}
-
-impl Error for RenderContextError {}
-
-impl Display for RenderContextError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
 
 pub struct RenderContext<'w> {
     pub surface: wgpu::Surface<'w>,

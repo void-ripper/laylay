@@ -37,8 +37,8 @@ impl Logger {
 }
 
 impl Subscriber for Logger {
-    fn enabled(&self, metadata: &tracing::Metadata<'_>) -> bool {
-        metadata.level() > &Level::TRACE
+    fn enabled(&self, _metadata: &tracing::Metadata<'_>) -> bool {
+        true
     }
 
     fn new_span(&self, _span: &span::Attributes<'_>) -> span::Id {
@@ -52,7 +52,7 @@ impl Subscriber for Logger {
     fn event(&self, event: &tracing::Event<'_>) {
         let meta = event.metadata();
         let target = meta.target().to_string();
-        if target.contains("polling") {
+        if target.contains("polling") || target.contains("winit") {
             return;
         }
 

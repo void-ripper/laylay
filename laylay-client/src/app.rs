@@ -108,6 +108,16 @@ impl<'a> App<'a> {
 
 impl<'a> ApplicationHandler for App<'a> {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        let xr = XrContext::new();
+
+        let xr = match xr {
+            Ok(xr) => Some(xr),
+            Err(e) => {
+                tracing::warn!("{e}");
+                None
+            }
+        };
+
         let window = event_loop
             .create_window(Window::default_attributes())
             .unwrap();
@@ -115,6 +125,7 @@ impl<'a> ApplicationHandler for App<'a> {
             let state = RenderContext::new(window).await;
             state
         });
+        self.xr = xr;
         self.state = Some(state);
         // self.runtime.
     }
