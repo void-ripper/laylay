@@ -18,7 +18,7 @@ impl ServerContext {
         let greeting = Message::Greeting {
             pubkey: prikey.public_key().to_sec1_bytes().into(),
             version: Version::get(),
-            info: Info::new(),
+            info: Info::new()?,
         };
 
         Ok(Arc::new(Self {

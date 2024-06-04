@@ -1,6 +1,6 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{fs::OpenOptions, io::Write, path::PathBuf, sync::Arc};
 
-use laylay_common::{Info, Message, Version};
+use laylay_common::{Info, Message, SecretKey, Version};
 use mlua::Lua;
 use tokio::{net::TcpStream, runtime::Runtime, sync::mpsc};
 use winit::{
@@ -16,9 +16,19 @@ use crate::{
     logger::Logger,
 };
 
+fn log(msg: &str) {
+    let mut file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open("/sdcard/Documents/laylay/log.txt")
+        .unwrap();
+
+    file.write_all(msg.as_bytes()).unwrap();
+}
+
 pub struct App<'a> {
     lua: Lua,
-    prikey: laylay_common::SecretKey,
+    prikey: SecretKey,
     runtime: Arc<Runtime>,
     state: Option<RenderContext<'a>>,
     xr: Option<XrContext>,
@@ -54,11 +64,12 @@ impl<'a> App<'a> {
             } else {
                 "127.0.0.1"
             };
+
             let mut stream = TcpStream::connect((addr, 33033)).await?;
             let greeting = Message::Greeting {
                 pubkey: public.into(),
                 version: Version::get(),
-                info: Info::new(),
+                info: Info::new()?,
             };
             laylay_common::write_greeting(&mut stream, &greeting).await?;
 

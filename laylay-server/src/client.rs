@@ -36,6 +36,7 @@ impl Client {
                 version,
                 info
             );
+            let session_id = ctx.db.get_session_id(&pubkey, &version, &info).await?;
 
             let (mut rx, mut tx) = stream.into_split();
             let (txch, mut rxch) = channel(10);
@@ -49,6 +50,7 @@ impl Client {
 
             let shared0 = shared.clone();
             let cl0 = client.clone();
+            let ctx0 = ctx.clone();
             tokio::spawn(async move {
                 loop {
                     let ret = laylay_common::read(&shared0, &mut rx)
@@ -66,6 +68,10 @@ impl Client {
                             break;
                         }
                     }
+                }
+
+                if let Err(e) = ctx0.db.end_session(session_id).await {
+                    tracing::error!("{e}");
                 }
             });
 
