@@ -8,7 +8,6 @@ pub struct Cpu {
     pub name: String,
     pub vendor_id: String,
     pub brand: String,
-    pub freq: u64,
 }
 
 #[derive(Debug, BorshDeserialize, BorshSerialize)]
@@ -53,7 +52,6 @@ impl Info {
                 name: "".to_owned(),
                 vendor_id: "".to_owned(),
                 brand: "".to_owned(),
-                freq: 0,
             },
             memory: 0,
         })
@@ -74,7 +72,6 @@ impl Info {
                 name: cpu.name().to_string(),
                 vendor_id: cpu.vendor_id().to_string(),
                 brand: cpu.brand().to_string(),
-                freq: cpu.frequency(),
             },
             memory: sys.total_memory(),
         })

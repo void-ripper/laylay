@@ -67,7 +67,6 @@ impl Database {
             AND cpu_name = ?            
             AND cpu_vendor = ?            
             AND cpu_brand = ?            
-            AND cpu_freq = ?            
             AND memory = ?
         "#;
         let insert_info_sql = r#"
@@ -79,10 +78,9 @@ impl Database {
                 cpu_name,            
                 cpu_vendor,            
                 cpu_brand,            
-                cpu_freq,            
                 memory
             )
-            VALUES(?,?,?,?,?,?,?,?,?)
+            VALUES(?,?,?,?,?,?,?,?)
             RETURNING id
         "#;
         let select_uvs_sql = r#"
@@ -142,7 +140,6 @@ impl Database {
             &info.cpu.name,
             &info.cpu.vendor_id,
             &info.cpu.brand,
-            &info.cpu.freq,
             &info.memory,
         );
         let info_id: Option<i64> = info_stmnt

@@ -23,7 +23,6 @@ CREATE TABLE sysinfo (
     cpu_name VARCHAR,
     cpu_vendor VARCHAR,
     cpu_brand VARCHAR,
-    cpu_freq VARCHAR,
     memory VARCHAR
 );
 CREATE UNIQUE INDEX sysinfo_u ON sysinfo(
