@@ -12,6 +12,7 @@ pub struct Client {
     server: Arc<ServerContext>,
     pubkey: Bytes,
     version: Version,
+    session_id: i64,
     txch: Sender<Message>,
 }
 
@@ -44,6 +45,7 @@ impl Client {
                 server: ctx.clone(),
                 pubkey: pubkey.clone(),
                 version,
+                session_id,
                 txch,
             });
             let shared = shared_secret(pubkey.clone(), &ctx.prikey);
@@ -97,7 +99,7 @@ impl Client {
         match msg {
             Message::Log { msg, target, level } => {
                 tracing::info!("{level} {target}: {msg}");
-                self.server.db.save_log(&level, &target, &msg).await?;
+                self.server.db.save_log(self.session_id, &level, &target, &msg).await?;
             }
             _ => {}
         }

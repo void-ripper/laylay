@@ -25,14 +25,14 @@ impl Database {
         })
     }
 
-    pub async fn save_log(&self, lvl: &str, target: &str, msg: &str) -> Result<(), ServerErrors> {
+    pub async fn save_log(&self, session_id: i64, lvl: &str, target: &str, msg: &str) -> Result<(), ServerErrors> {
         let sql = r#"
-        INSERT INTO logs(level_id, target, message) 
-        VALUES((SELECT id FROM log_level WHERE name = ?), ?, ?)
+        INSERT INTO logs(session_id, level_id, target, message) 
+        VALUES(?, (SELECT id FROM log_level WHERE name = ?), ?, ?)
         "#;
         let conn = self.conn.lock().await;
         let mut stmnt = conn.prepare_cached(sql)?;
-        stmnt.execute((lvl, target, msg))?;
+        stmnt.execute((session_id, lvl, target, msg))?;
 
         Ok(())
     }

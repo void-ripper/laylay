@@ -33,7 +33,6 @@ CREATE UNIQUE INDEX sysinfo_u ON sysinfo(
     cpu_name, 
     cpu_vendor,
     cpu_brand,
-    cpu_freq,
     memory
 );
 
