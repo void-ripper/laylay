@@ -55,7 +55,7 @@ impl Client {
                 loop {
                     let ret = laylay_common::read(&shared0, &mut rx)
                         .await
-                        .map_err(|e| ServerErrors::Internal(e.to_string()));
+                        .map_err(|e| ServerErrors::from(e));
 
                     match ret {
                         Ok(msg) => {
@@ -89,9 +89,7 @@ impl Client {
 
             Ok(client)
         } else {
-            Err(ServerErrors::Internal(
-                "client did not send greeting".to_owned(),
-            ))
+            Err(ServerErrors::internal("client did not send greeting"))
         }
     }
 
