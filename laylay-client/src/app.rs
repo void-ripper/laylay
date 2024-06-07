@@ -13,7 +13,7 @@ use winit::{
 use crate::{
     context::{render::RenderContext, xr::XrContext},
     errors::ClientError,
-    logger::Logger,
+    logger::Logger, scene::{Scene, ScenePtr},
 };
 
 fn log(msg: &str) {
@@ -32,6 +32,7 @@ pub struct App<'a> {
     runtime: Arc<Runtime>,
     state: Option<RenderContext<'a>>,
     xr: Option<XrContext>,
+    scene: Option<ScenePtr>,
 }
 
 impl<'a> App<'a> {
@@ -56,6 +57,7 @@ impl<'a> App<'a> {
             runtime: runtime.clone(),
             state: None,
             xr: None,
+            scene: None,
         };
 
         let ret: Result<(), ClientError> = app.runtime.block_on(async {
@@ -132,12 +134,16 @@ impl<'a> ApplicationHandler for App<'a> {
         let window = event_loop
             .create_window(Window::default_attributes())
             .unwrap();
-        let state = self.runtime.block_on(async {
+        let (scene, state) = self.runtime.block_on(async {
+            let size = window.inner_size();
+            let aspect = size.width as f32 / size.height as f32;
+            let scene = Scene::new(aspect).await;
             let state = RenderContext::new(window).await;
-            state
+            (scene, state)
         });
         self.xr = xr;
         self.state = Some(state);
+        self.scene = Some(scene);
         // self.runtime.
     }
 
@@ -152,6 +158,10 @@ impl<'a> ApplicationHandler for App<'a> {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
+                if let Some(scene) = &self.scene {
+                    scene.render();
+                }
+
                 if let Some(state) = &mut self.state {
                     if let Err(e) = state.render() {
                         tracing::error!("{e}");

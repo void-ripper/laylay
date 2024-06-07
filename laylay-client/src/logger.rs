@@ -7,7 +7,7 @@ use laylay_common::Message;
 use tokio::{runtime::Runtime, sync::mpsc::Sender};
 use tracing::{
     field::{Field, Visit},
-    span, Level, Subscriber,
+    span, Subscriber,
 };
 
 pub struct Logger {

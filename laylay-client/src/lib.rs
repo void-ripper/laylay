@@ -8,7 +8,8 @@ mod app;
 mod context;
 mod errors;
 mod logger;
-mod model;
+mod math;
+mod scene;
 
 pub use app::App;
 

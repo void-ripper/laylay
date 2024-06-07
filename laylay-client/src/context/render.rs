@@ -1,7 +1,8 @@
 use wgpu::{util::DeviceExt, PipelineCompilationOptions, SurfaceTargetUnsafe};
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::model;
+use crate::scene::model::{self, Vertex};
+
 
 pub struct RenderContext<'w> {
     pub surface: wgpu::Surface<'w>,
@@ -88,8 +89,8 @@ impl<'w> RenderContext<'w> {
             vertex: wgpu::VertexState {
                 compilation_options: PipelineCompilationOptions::default(),
                 module: &shader,
-                entry_point: "vs_main", // 1.
-                buffers: &[],           // 2.
+                entry_point: "vs_main",     // 1.
+                buffers: &[Vertex::desc()], // 2.
             },
             fragment: Some(wgpu::FragmentState {
                 // 3.
@@ -183,6 +184,7 @@ impl<'w> RenderContext<'w> {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.draw(0..3, 0..1);
         }
 
