@@ -1,8 +1,13 @@
-use wgpu::{util::DeviceExt, PipelineCompilationOptions, SurfaceTargetUnsafe};
+use wgpu::{util::{BufferInitDescriptor, DeviceExt}, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferUsages, PipelineCompilationOptions, ShaderStages, SurfaceTargetUnsafe};
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::scene::model::{self, Vertex};
+use crate::scene::{camera::Camera, model::{self, Vertex}, ScenePtr};
 
+#[repr(C)]
+#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
+pub struct CameraUniform {
+    pub view_proj: [f32; 16],
+}
 
 pub struct RenderContext<'w> {
     pub surface: wgpu::Surface<'w>,
@@ -11,8 +16,11 @@ pub struct RenderContext<'w> {
     pub config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
     pub window: Window,
-    pub render_pipeline: wgpu::RenderPipeline,
-    pub vertex_buffer: wgpu::Buffer,
+    render_pipeline: wgpu::RenderPipeline,
+    pub vertex_buffer: Buffer,
+    pub camera_bind_group: BindGroup,
+    pub camera: CameraUniform,
+    camera_buffer: Buffer,
 }
 
 impl<'w> RenderContext<'w> {
@@ -76,10 +84,42 @@ impl<'w> RenderContext<'w> {
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
+        let camera = CameraUniform {
+            view_proj: [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+        };
+        let camera_buffer = device.create_buffer_init(
+            &BufferInitDescriptor {
+                label: Some("Camera Buffer"),
+                contents: bytemuck::cast_slice(&[camera]),
+                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
+          }
+        );
+        
+        let camera_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor{
+            label: Some("Camera Bind Group Layout"),
+            entries: &[BindGroupLayoutEntry {
+            binding: 0,
+            visibility: ShaderStages::VERTEX,
+            ty: BindingType::Buffer { ty: BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None },
+            count: None,
+        }],
+        });
+
+        let camera_bind_group = device.create_bind_group(&BindGroupDescriptor {
+            label: Some("Camera Bind Group"),
+            layout: &camera_bind_group_layout,
+            entries: &[
+                BindGroupEntry {
+                    binding: 0,
+                    resource: camera_buffer.as_entire_binding(),
+                }
+            ]
+        });
+
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[],
+                bind_group_layouts: &[&camera_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -108,7 +148,8 @@ impl<'w> RenderContext<'w> {
                 topology: wgpu::PrimitiveTopology::TriangleList, // 1.
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw, // 2.
-                cull_mode: Some(wgpu::Face::Back),
+                // cull_mode: Some(wgpu::Face::Back),
+                cull_mode: None,
                 // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
                 polygon_mode: wgpu::PolygonMode::Fill,
                 // Requires Features::DEPTH_CLIP_CONTROL
@@ -140,6 +181,9 @@ impl<'w> RenderContext<'w> {
             size,
             render_pipeline,
             vertex_buffer,
+            camera_bind_group,
+            camera_buffer,
+            camera,
         }
     }
 
@@ -152,7 +196,10 @@ impl<'w> RenderContext<'w> {
         }
     }
 
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, scene: ScenePtr) -> Result<(), wgpu::SurfaceError> {
+        self.camera.view_proj = scene.camera.transform;
+        self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera]));
+
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
@@ -184,6 +231,8 @@ impl<'w> RenderContext<'w> {
             });
 
             render_pass.set_pipeline(&self.render_pipeline);
+            render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.draw(0..3, 0..1);
         }

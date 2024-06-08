@@ -13,7 +13,8 @@ use winit::{
 use crate::{
     context::{render::RenderContext, xr::XrContext},
     errors::ClientError,
-    logger::Logger, scene::{Scene, ScenePtr},
+    logger::Logger,
+    scene::{Scene, ScenePtr},
 };
 
 fn log(msg: &str) {
@@ -137,8 +138,8 @@ impl<'a> ApplicationHandler for App<'a> {
         let (scene, state) = self.runtime.block_on(async {
             let size = window.inner_size();
             let aspect = size.width as f32 / size.height as f32;
-            let scene = Scene::new(aspect).await;
             let state = RenderContext::new(window).await;
+            let scene = Scene::new(aspect).await;
             (scene, state)
         });
         self.xr = xr;
@@ -158,13 +159,11 @@ impl<'a> ApplicationHandler for App<'a> {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                if let Some(scene) = &self.scene {
-                    scene.render();
-                }
-
                 if let Some(state) = &mut self.state {
-                    if let Err(e) = state.render() {
-                        tracing::error!("{e}");
+                    if let Some(scene) = &self.scene {
+                        if let Err(e) = state.render(scene.clone()) {
+                            tracing::error!("{e}");
+                        }
                     }
                 }
             }
