@@ -4,6 +4,7 @@ use std::mem::size_of;
 #[derive(Copy, Clone, Debug, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct Vertex {
     pub position: [f32; 3],
+    pub normal: [f32; 3],
     pub color: [f32; 3],
 }
 
@@ -23,6 +24,11 @@ impl Vertex {
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float32x3,
                 },
+                wgpu::VertexAttribute {
+                    offset: size_of::<[f32; 6]>() as wgpu::BufferAddress,
+                    shader_location: 2,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
             ],
         }
     }
@@ -31,14 +37,17 @@ impl Vertex {
 pub const VERTICES: &[Vertex] = &[
     Vertex {
         position: [0.0, 0.5, 0.0],
+        normal: [0.0, 0.0, 0.0],
         color: [1.0, 0.0, 0.0],
     },
     Vertex {
         position: [-0.5, -0.5, 0.0],
+        normal: [0.0, 0.0, 0.0],
         color: [0.0, 1.0, 0.0],
     },
     Vertex {
         position: [0.5, -0.5, 0.0],
+        normal: [0.0, 0.0, 0.0],
         color: [0.0, 0.0, 1.0],
     },
 ];

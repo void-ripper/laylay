@@ -1427,6 +1427,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "luau0-src"
+version = "0.9.1+luau625"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "39df4ee5bd067cb2363b9f9e5eed0f1cf326fc80508af8ac037eed5b15459c4a"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "malloc_buf"
 version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1502,6 +1511,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e340c022072f3208a4105458286f4985ba5355bfe243c3073afe45cbe9ecf491"
 dependencies = [
  "bstr",
+ "libloading 0.8.3",
  "mlua-sys",
  "num-traits",
  "once_cell",
@@ -1519,6 +1529,7 @@ dependencies = [
  "cfg-if",
  "lua-src",
  "luajit-src",
+ "luau0-src",
  "pkg-config",
 ]
 

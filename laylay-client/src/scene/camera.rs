@@ -1,4 +1,6 @@
 
+use winit::dpi::PhysicalSize;
+
 use crate::math::matrix::{self, Matrix};
 
 use super::node::{Node, NodePtr};
@@ -7,6 +9,7 @@ use super::node::{Node, NodePtr};
 
 pub struct Camera {
     pub node: NodePtr,
+    pub projection: Matrix,
     pub transform: Matrix,
     pub aspect: f32,
     pub fovy: f32,
@@ -16,10 +19,12 @@ pub struct Camera {
 
 impl Camera {
       
-    pub fn perspective( eye: &[f32; 3], target: &[f32; 3], aspect: f32, fovy: f32, znear: f32, zfar: f32) -> Self {
+    pub async fn perspective( eye: &[f32; 3], target: &[f32; 3], aspect: f32, fovy: f32, znear: f32, zfar: f32) -> Self {
+        let node = Node::new();
         let mut m = matrix::new();
         matrix::translate(&mut m, eye);
         matrix::look_at(&mut m, target, &[0.0, 1.0, 0.0]);
+        *node.transform.write().await = m;
         let inv = matrix::inverse(&m);
 
         let mut p = matrix::new();
@@ -40,7 +45,8 @@ impl Camera {
         // matrix::translate(&mut opengl_to_wgpu, &[0.0, 0.5, 0.0]);
         
         Self {
-            node: Node::new(),
+            node,
+            projection: p,
             transform: opengl_to_wgpu,
             aspect,
             fovy,
@@ -49,7 +55,24 @@ impl Camera {
         }
     }
 
-    pub fn resize(&mut self) {}
+    pub fn resize(&mut self, size: PhysicalSize<u32>) {
+        self.aspect = size.width as f32 / size.height as f32;
+        matrix::identity(&mut self.projection);
+        matrix::perspective(&mut self.projection, self.fovy, self.aspect, self.znear, self.zfar);
+    }
 
-    pub fn update(&self) {}
+    pub async fn update(&mut self) {
+        #[rustfmt::skip]
+        let mut opengl_to_wgpu = [ 
+            1.0, 0.0, 0.0, 0.0,
+            0.0, 1.0, 0.0, 0.0,
+            0.0, 0.0, 0.5, 0.5,
+            0.0, 0.0, 0.0, 1.0,
+        ];
+        // matrix::mul_assign(&mut m, &opengl_to_wgpu);
+        matrix::mul_assign(&mut opengl_to_wgpu, &*self.node.transform.read().await);
+        matrix::mul_assign(&mut opengl_to_wgpu, &self.projection);
+
+        self.transform = opengl_to_wgpu;
+    }
 }

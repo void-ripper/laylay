@@ -1,7 +1,16 @@
-use wgpu::{util::{BufferInitDescriptor, DeviceExt}, BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferUsages, PipelineCompilationOptions, ShaderStages, SurfaceTargetUnsafe};
+use wgpu::{
+    util::{BufferInitDescriptor, DeviceExt},
+    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
+    BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferUsages, IndexFormat,
+    PipelineCompilationOptions, ShaderStages, SurfaceTargetUnsafe,
+};
 use winit::{dpi::PhysicalSize, window::Window};
 
-use crate::scene::{camera::Camera, model::{self, Vertex}, ScenePtr};
+use crate::scene::{
+    camera::Camera,
+    model::{self, Vertex},
+    ScenePtr,
+};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -85,35 +94,38 @@ impl<'w> RenderContext<'w> {
         });
 
         let camera = CameraUniform {
-            view_proj: [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+            view_proj: [
+                1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+            ],
         };
-        let camera_buffer = device.create_buffer_init(
-            &BufferInitDescriptor {
-                label: Some("Camera Buffer"),
-                contents: bytemuck::cast_slice(&[camera]),
-                usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-          }
-        );
-        
-        let camera_bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor{
-            label: Some("Camera Bind Group Layout"),
-            entries: &[BindGroupLayoutEntry {
-            binding: 0,
-            visibility: ShaderStages::VERTEX,
-            ty: BindingType::Buffer { ty: BufferBindingType::Uniform, has_dynamic_offset: false, min_binding_size: None },
-            count: None,
-        }],
+        let camera_buffer = device.create_buffer_init(&BufferInitDescriptor {
+            label: Some("Camera Buffer"),
+            contents: bytemuck::cast_slice(&[camera]),
+            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
         });
+
+        let camera_bind_group_layout =
+            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
+                label: Some("Camera Bind Group Layout"),
+                entries: &[BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: ShaderStages::VERTEX,
+                    ty: BindingType::Buffer {
+                        ty: BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }],
+            });
 
         let camera_bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("Camera Bind Group"),
             layout: &camera_bind_group_layout,
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: camera_buffer.as_entire_binding(),
-                }
-            ]
+            entries: &[BindGroupEntry {
+                binding: 0,
+                resource: camera_buffer.as_entire_binding(),
+            }],
         });
 
         let render_pipeline_layout =
@@ -196,9 +208,14 @@ impl<'w> RenderContext<'w> {
         }
     }
 
-    pub fn render(&mut self, scene: ScenePtr) -> Result<(), wgpu::SurfaceError> {
-        self.camera.view_proj = scene.camera.transform;
-        self.queue.write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera]));
+    pub async fn render(&mut self, scene: ScenePtr) -> Result<(), wgpu::SurfaceError> {
+        {
+            let mut cam = scene.camera.write().await;
+            cam.update().await;
+            self.camera.view_proj = cam.transform;
+        }
+        self.queue
+            .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera]));
 
         let output = self.surface.get_current_texture()?;
         let view = output
@@ -209,6 +226,8 @@ impl<'w> RenderContext<'w> {
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
                 label: Some("Render Encoder"),
             });
+
+        let drawables = scene.drawables.read().await;
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -235,7 +254,15 @@ impl<'w> RenderContext<'w> {
 
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.draw(0..3, 0..1);
-        }
+
+            for drw in drawables.iter() {
+                // render_pass.set_vertex_buffer(0, drw.vertex_buffer.slice(..));
+                let ibuf = drw.index_buffer.slice(..);
+                render_pass.set_index_buffer(ibuf, IndexFormat::Uint32);
+                // pass.draw(0..drw.vertex_count, 0..1);
+                render_pass.draw_indexed(0..drw.index_count, 0, 0..1);
+            }
+        };
 
         // submit will accept anything that implements IntoIter
         self.queue.submit(std::iter::once(encoder.finish()));

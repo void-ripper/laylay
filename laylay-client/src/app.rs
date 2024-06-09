@@ -11,10 +11,7 @@ use winit::{
 };
 
 use crate::{
-    context::{render::RenderContext, xr::XrContext},
-    errors::ClientError,
-    logger::Logger,
-    scene::{Scene, ScenePtr},
+    context::{render::RenderContext, xr::XrContext}, errors::ClientError, logger::Logger, math::matrix, scene::{drawable::Drawable, Scene, ScenePtr}
 };
 
 fn log(msg: &str) {
@@ -140,6 +137,19 @@ impl<'a> ApplicationHandler for App<'a> {
             let aspect = size.width as f32 / size.height as f32;
             let state = RenderContext::new(window).await;
             let scene = Scene::new(aspect).await;
+
+            let (document, buffers, images) = gltf::import("assets/boid.glb").unwrap();
+            let meshes = document.meshes();
+
+            for mesh in meshes {
+                tracing::info!("load mesh: {:?}", mesh.name());
+                for prim in mesh.primitives() {
+                    let drawable = Drawable::new(&state.device, &prim);
+                    tracing::info!("load mesh primitive v({}) i({})", drawable.vertex_count, drawable.index_count);
+                    scene.add_drawable(drawable).await;
+                }
+            }
+
             (scene, state)
         });
         self.xr = xr;
@@ -161,9 +171,11 @@ impl<'a> ApplicationHandler for App<'a> {
             WindowEvent::RedrawRequested => {
                 if let Some(state) = &mut self.state {
                     if let Some(scene) = &self.scene {
-                        if let Err(e) = state.render(scene.clone()) {
-                            tracing::error!("{e}");
-                        }
+                        self.runtime.block_on(async {
+                            if let Err(e) = state.render(scene.clone()).await {
+                                tracing::error!("{e}");
+                            }
+                        });
                     }
                 }
             }
@@ -171,18 +183,56 @@ impl<'a> ApplicationHandler for App<'a> {
                 if let Some(state) = &mut self.state {
                     state.resize(new_size);
                 }
+
+                if let Some(scene) = &self.scene {
+                    scene.camera.blocking_write().resize(new_size);
+                }
             }
             WindowEvent::KeyboardInput {
                 device_id,
                 event,
                 is_synthetic,
             } => {
-                tracing::info!("{:?}", event);
+                match event.physical_key {
+                    PhysicalKey::Code(KeyCode::KeyQ) => { event_loop.exit() }
+                    PhysicalKey::Code(KeyCode::KeyA) => {
+                        if let Some(scene) = &self.scene {
+                            let cam = scene.camera.blocking_read();
+                            let mut m = cam.node.transform.blocking_write();
+                            matrix::translate(&mut *m, &[0.1, 0.0, 0.0]);
+                        }
+                    }
+                    PhysicalKey::Code(KeyCode::KeyD) => {
+                        if let Some(scene) = &self.scene {
+                            let cam = scene.camera.blocking_read();
+                            let mut m = cam.node.transform.blocking_write();
+                            matrix::translate(&mut *m, &[-0.1, 0.0, 0.0]);
+                        }
+                    }
+                    PhysicalKey::Code(KeyCode::KeyW) => {
+                        if let Some(scene) = &self.scene {
+                            let cam = scene.camera.blocking_read();
+                            let mut m = cam.node.transform.blocking_write();
+                            matrix::translate(&mut *m, &[0.0, 0.0, 0.1]);
+                        }
+                    }
+                    PhysicalKey::Code(KeyCode::KeyS) => {
+                        if let Some(scene) = &self.scene {
+                            let cam = scene.camera.blocking_read();
+                            let mut m = cam.node.transform.blocking_write();
+                            matrix::translate(&mut *m, &[0.0, 0.0, -0.1]);
+                        }
+                    }
+                    _ => {
+                        tracing::info!("{:?}", event);
+                    }
+                }
                 if event.physical_key == PhysicalKey::Code(KeyCode::KeyQ) {
                     event_loop.exit();
                 }
             }
-            _ => {}
+            _ => {
+                            }
         }
     }
 }

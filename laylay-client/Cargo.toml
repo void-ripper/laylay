@@ -57,7 +57,7 @@ name = "org.khronos.openxr"
 [dependencies]
 bytemuck = { version = "1.16.0", features = ["derive"] }
 gltf = "1.4.1"
-mlua = { version = "0.9.8", features = ["lua54", "parking_lot", "vendored"] }
+mlua = { version = "0.9.8", features = ["luau", "parking_lot", "vendored"] }
 openxr = { version = "0.18.0", features = ["loaded"] }
 tokio = { version = "1.38.0", features = ["full"] }
 tracing = "0.1.40"
