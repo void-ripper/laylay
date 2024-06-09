@@ -18,18 +18,16 @@ pub struct Drawable {
 }
 
 impl Drawable {
-    pub fn new(device: &Device, prim: &Primitive) -> DrawablePtr {
+    pub fn new(device: &Device, prim: &Primitive, doc: &gltf::Gltf) -> DrawablePtr {
         let id = ID_POOL.fetch_add(1, Ordering::SeqCst);
 
-        let reader = prim.reader(|_| None);
+        let reader = prim.reader(|_| doc.blob.as_ref().map(|a| a.as_slice()));
 
         let mut vertices = Vec::new();
         let mut indices = Vec::new();
 
-        let data = reader.read_positions().zip(reader.read_normals());
-
-        if let Some((pos, norm)) = data {
-            for (pos, norm)in pos.zip(norm) {
+        if let Some(pos) = reader.read_positions().zip(reader.read_normals()) {
+            for (pos , norm)in pos.0.zip(pos.1) {
                 vertices.push(Vertex {
                     position: pos,
                     normal: norm,

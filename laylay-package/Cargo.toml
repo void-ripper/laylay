@@ -7,5 +7,5 @@ edition.workspace = true
 
 [dependencies]
 clap = { version = "4.5.4", features = ["derive"] }
-mlua = { version = "0.9.8", features = ["luau", "parking_lot", "vendored"] }
+mlua.workspace = true
 zip = { version = "2.1.1", default-features = false, features = ["zstd"] }

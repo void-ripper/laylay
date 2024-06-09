@@ -1,7 +1,6 @@
 use std::{fs::OpenOptions, io::Write, path::PathBuf, sync::Arc};
 
 use laylay_common::{Info, Message, SecretKey, Version};
-use mlua::Lua;
 use tokio::{net::TcpStream, runtime::Runtime, sync::mpsc};
 use winit::{
     application::ApplicationHandler,
@@ -25,7 +24,6 @@ fn log(msg: &str) {
 }
 
 pub struct App<'a> {
-    lua: Lua,
     prikey: SecretKey,
     runtime: Arc<Runtime>,
     state: Option<RenderContext<'a>>,
@@ -50,7 +48,6 @@ impl<'a> App<'a> {
         let public = prikey.public_key().to_sec1_bytes();
         let runtime = Arc::new(Runtime::new()?);
         let app = Self {
-            lua: Lua::new(),
             prikey: prikey.clone(),
             runtime: runtime.clone(),
             state: None,
@@ -138,13 +135,15 @@ impl<'a> ApplicationHandler for App<'a> {
             let state = RenderContext::new(window).await;
             let scene = Scene::new(aspect).await;
 
-            let (document, buffers, images) = gltf::import("assets/boid.glb").unwrap();
+            // let (document, buffers, images) = gltf::import("assets/shrine.glb").unwrap();
+            let document = gltf::Gltf::open("assets/shrine.glb").unwrap();
             let meshes = document.meshes();
 
+            // document.buffers()
             for mesh in meshes {
                 tracing::info!("load mesh: {:?}", mesh.name());
                 for prim in mesh.primitives() {
-                    let drawable = Drawable::new(&state.device, &prim);
+                    let drawable = Drawable::new(&state.device, &prim, &document);
                     tracing::info!("load mesh primitive v({}) i({})", drawable.vertex_count, drawable.index_count);
                     scene.add_drawable(drawable).await;
                 }
