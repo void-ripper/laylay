@@ -7,7 +7,6 @@ use wgpu::{
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::scene::{
-    camera::Camera,
     model::{self, Vertex},
     ScenePtr,
 };

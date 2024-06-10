@@ -5,8 +5,6 @@ use crate::math::matrix::{self, Matrix};
 
 use super::node::{Node, NodePtr};
 
-
-
 pub struct Camera {
     pub node: NodePtr,
     pub projection: Matrix,
@@ -57,7 +55,6 @@ impl Camera {
 
     pub fn resize(&mut self, size: PhysicalSize<u32>) {
         self.aspect = size.width as f32 / size.height as f32;
-        matrix::identity(&mut self.projection);
         matrix::perspective(&mut self.projection, self.fovy, self.aspect, self.znear, self.zfar);
     }
 
@@ -70,8 +67,9 @@ impl Camera {
             0.0, 0.0, 0.0, 1.0,
         ];
         // matrix::mul_assign(&mut m, &opengl_to_wgpu);
-        matrix::mul_assign(&mut opengl_to_wgpu, &*self.node.transform.read().await);
         matrix::mul_assign(&mut opengl_to_wgpu, &self.projection);
+        let inv = matrix::inverse(&*self.node.transform.read().await);
+        matrix::mul_assign(&mut opengl_to_wgpu, &inv);
 
         self.transform = opengl_to_wgpu;
     }
