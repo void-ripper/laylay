@@ -467,7 +467,7 @@ pub fn look_at(m: &mut Matrix, lookat: &[f32; 3], up: &[f32; 3]) {
     m[8] = -f[0];
     m[9] = -f[1];
     m[10] = -f[2];
-    // m[12] = -vector::dot(&eye, &s);
-    // m[13] = -vector::dot(&eye, &u);
-    // m[14] = vector::dot(&eye, &f);
+    m[12] = -vector::dot(&eye, &s);
+    m[13] = -vector::dot(&eye, &u);
+    m[14] = vector::dot(&eye, &f);
 }

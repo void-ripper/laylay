@@ -62,7 +62,6 @@ impl Camera {
             0.0, 0.0, 0.5, 0.5,
             0.0, 0.0, 0.0, 1.0,
         ];
-        // matrix::mul_assign(&mut m, &opengl_to_wgpu);
         matrix::mul_assign(&mut opengl_to_wgpu, &self.projection);
         let inv = matrix::inverse(&*self.node.transform.read().await);
         matrix::mul_assign(&mut opengl_to_wgpu, &inv);
