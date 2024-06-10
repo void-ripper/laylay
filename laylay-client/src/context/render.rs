@@ -258,7 +258,6 @@ impl<'w> RenderContext<'w> {
             for drw in drawables.iter() {
                 render_pass.set_vertex_buffer(0, drw.vertex_buffer.slice(..));
                 render_pass.set_index_buffer(drw.index_buffer.slice(..), IndexFormat::Uint32);
-                // pass.draw(0..drw.vertex_count, 0..1);
                 render_pass.draw_indexed(0..drw.index_count, 0, 0..1);
             }
         };

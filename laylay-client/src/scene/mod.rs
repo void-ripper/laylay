@@ -4,12 +4,12 @@ use camera::Camera;
 use drawable::DrawablePtr;
 use node::{Node, NodePtr};
 use tokio::sync::RwLock;
-use wgpu::{Device, RenderPass};
 
 pub mod camera;
 pub mod drawable;
 pub mod model;
 pub mod node;
+pub mod light;
 
 
 pub type ScenePtr = Arc<Scene>;
