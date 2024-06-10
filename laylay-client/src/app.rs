@@ -116,6 +116,8 @@ impl<'a> App<'a> {
 
 impl<'a> ApplicationHandler for App<'a> {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        tracing::info!("resumed application");
+
         let xr = XrContext::new();
 
         let xr = match xr {
@@ -136,7 +138,7 @@ impl<'a> ApplicationHandler for App<'a> {
             let scene = Scene::new(aspect).await;
 
             // let (document, buffers, images) = gltf::import("assets/shrine.glb").unwrap();
-            let document = gltf::Gltf::open("assets/shrine.glb").unwrap();
+            let document = gltf::Gltf::open("assets/boid.glb").unwrap();
             let meshes = document.meshes();
 
             // document.buffers()
@@ -151,10 +153,17 @@ impl<'a> ApplicationHandler for App<'a> {
 
             (scene, state)
         });
+        #[cfg(target_os = "macos")]
+        state.window.request_redraw();
+
         self.xr = xr;
         self.state = Some(state);
         self.scene = Some(scene);
         // self.runtime.
+    }
+
+    fn suspended(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+        self.state = None;
     }
 
     fn window_event(
@@ -176,6 +185,7 @@ impl<'a> ApplicationHandler for App<'a> {
                             }
                         });
                     }
+                    state.window.request_redraw();
                 }
             }
             WindowEvent::Resized(new_size) => {
@@ -212,10 +222,24 @@ impl<'a> ApplicationHandler for App<'a> {
                         if let Some(scene) = &self.scene {
                             let cam = scene.camera.blocking_read();
                             let mut m = cam.node.transform.blocking_write();
-                            matrix::translate(&mut *m, &[0.0, 0.0, 0.1]);
+                            matrix::translate(&mut *m, &[0.0, 0.1, 0.0]);
                         }
                     }
                     PhysicalKey::Code(KeyCode::KeyS) => {
+                        if let Some(scene) = &self.scene {
+                            let cam = scene.camera.blocking_read();
+                            let mut m = cam.node.transform.blocking_write();
+                            matrix::translate(&mut *m, &[0.0, -0.1, 0.0]);
+                        }
+                    }
+                    PhysicalKey::Code(KeyCode::KeyZ) => {
+                        if let Some(scene) = &self.scene {
+                            let cam = scene.camera.blocking_read();
+                            let mut m = cam.node.transform.blocking_write();
+                            matrix::translate(&mut *m, &[0.0, 0.0, 0.1]);
+                        }
+                    }
+                    PhysicalKey::Code(KeyCode::KeyX) => {
                         if let Some(scene) = &self.scene {
                             let cam = scene.camera.blocking_read();
                             let mut m = cam.node.transform.blocking_write();
