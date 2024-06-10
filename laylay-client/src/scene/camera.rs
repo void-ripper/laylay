@@ -27,8 +27,6 @@ impl Camera {
 
         let mut p = matrix::new();
         matrix::perspective(&mut p, fovy, aspect, znear, zfar);
-        // matrix::transpose(&mut p);
-        // matrix::mul_assign(&mut p, &m);
 
         #[rustfmt::skip]
         let mut opengl_to_wgpu = [ 
@@ -37,10 +35,8 @@ impl Camera {
             0.0, 0.0, 0.5, 0.5,
             0.0, 0.0, 0.0, 1.0,
         ];
-        // matrix::mul_assign(&mut m, &opengl_to_wgpu);
-        matrix::mul_assign(&mut opengl_to_wgpu, &m);
         matrix::mul_assign(&mut opengl_to_wgpu, &p);
-        // matrix::translate(&mut opengl_to_wgpu, &[0.0, 0.5, 0.0]);
+        matrix::mul_assign(&mut opengl_to_wgpu, &inv);
         
         Self {
             node,

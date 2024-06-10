@@ -10,7 +10,7 @@ use winit::{
 };
 
 use crate::{
-    context::{render::RenderContext, xr::XrContext}, errors::ClientError, logger::Logger, math::matrix, scene::{drawable::Drawable, Scene, ScenePtr}
+    context::{counter::FrameCounter, render::RenderContext, xr::XrContext}, errors::ClientError, logger::Logger, math::matrix, scene::{drawable::Drawable, Scene, ScenePtr}
 };
 
 fn log(msg: &str) {
@@ -25,6 +25,7 @@ fn log(msg: &str) {
 
 pub struct App<'a> {
     prikey: SecretKey,
+    counter: FrameCounter,
     runtime: Arc<Runtime>,
     state: Option<RenderContext<'a>>,
     xr: Option<XrContext>,
@@ -49,6 +50,7 @@ impl<'a> App<'a> {
         let runtime = Arc::new(Runtime::new()?);
         let app = Self {
             prikey: prikey.clone(),
+            counter: FrameCounter::new(),
             runtime: runtime.clone(),
             state: None,
             xr: None,
@@ -178,6 +180,8 @@ impl<'a> ApplicationHandler for App<'a> {
             }
             WindowEvent::RedrawRequested => {
                 if let Some(state) = &mut self.state {
+                    let _delta = self.counter.tick();
+                    
                     if let Some(scene) = &self.scene {
                         self.runtime.block_on(async {
                             if let Err(e) = state.render(scene.clone()).await {
