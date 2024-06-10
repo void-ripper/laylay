@@ -7,8 +7,7 @@ use wgpu::{
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::scene::{
-    model::{self, Vertex},
-    ScenePtr,
+    light::RawLight, model::{self, Vertex}, ScenePtr
 };
 
 #[repr(C)]
@@ -29,6 +28,7 @@ pub struct RenderContext<'w> {
     pub camera_bind_group: BindGroup,
     pub camera: CameraUniform,
     camera_buffer: Buffer,
+    lights: [RawLight; 10],
 }
 
 impl<'w> RenderContext<'w> {
@@ -183,6 +183,11 @@ impl<'w> RenderContext<'w> {
             usage: wgpu::BufferUsages::VERTEX,
         });
 
+        let lights = [RawLight {
+            pos: [0.0, 0.0, 0.0],
+            color: [0.0, 0.0, 0.0],
+        }; 10];
+        
         Self {
             window: win,
             surface,
@@ -195,6 +200,7 @@ impl<'w> RenderContext<'w> {
             camera_bind_group,
             camera_buffer,
             camera,
+            lights,
         }
     }
 

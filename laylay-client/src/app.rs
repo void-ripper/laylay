@@ -181,7 +181,7 @@ impl<'a> ApplicationHandler for App<'a> {
             WindowEvent::RedrawRequested => {
                 if let Some(state) = &mut self.state {
                     let _delta = self.counter.tick();
-                    
+
                     if let Some(scene) = &self.scene {
                         self.runtime.block_on(async {
                             if let Err(e) = state.render(scene.clone()).await {
@@ -248,6 +248,13 @@ impl<'a> ApplicationHandler for App<'a> {
                             let cam = scene.camera.blocking_read();
                             let mut m = cam.node.transform.blocking_write();
                             matrix::translate(&mut *m, &[0.0, 0.0, -0.1]);
+                        }
+                    }
+                    PhysicalKey::Code(KeyCode::KeyP) => {
+                        if let Some(scene) = &self.scene {
+                            let cam = scene.camera.blocking_read();
+                            let m = cam.node.transform.blocking_read();
+                            println!("{:?}", m);
                         }
                     }
                     _ => {
