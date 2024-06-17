@@ -10,7 +10,11 @@ use winit::{
 };
 
 use crate::{
-    context::{counter::FrameCounter, render::RenderContext, xr::XrContext}, errors::ClientError, logger::Logger, math::matrix, scene::{drawable::Drawable, Scene, ScenePtr}
+    context::{counter::FrameCounter, render::RenderContext, xr::XrContext},
+    errors::ClientError,
+    logger::Logger,
+    math::matrix,
+    scene::{drawable::Drawable, Scene, ScenePtr},
 };
 
 fn log(msg: &str) {
@@ -75,8 +79,8 @@ impl<'a> App<'a> {
             let ret = laylay_common::read_greeting(&mut stream).await?;
             if let Message::Greeting {
                 pubkey,
-                version,
-                info,
+                version: _,
+                info: _,
             } = ret
             {
                 let shared = laylay_common::shared_secret(pubkey, &prikey);
@@ -148,7 +152,11 @@ impl<'a> ApplicationHandler for App<'a> {
                 tracing::info!("load mesh: {:?}", mesh.name());
                 for prim in mesh.primitives() {
                     let drawable = Drawable::new(&state.device, &prim, &document);
-                    tracing::info!("load mesh primitive v({}) i({})", drawable.vertex_count, drawable.index_count);
+                    tracing::info!(
+                        "load mesh primitive v({}) i({})",
+                        drawable.vertex_count,
+                        drawable.index_count
+                    );
                     scene.add_drawable(drawable).await;
                 }
             }
@@ -164,14 +172,15 @@ impl<'a> ApplicationHandler for App<'a> {
         // self.runtime.
     }
 
-    fn suspended(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
+    fn suspended(&mut self, _event_loop: &winit::event_loop::ActiveEventLoop) {
+        tracing::info!("suspended");
         self.state = None;
     }
 
     fn window_event(
         &mut self,
         event_loop: &winit::event_loop::ActiveEventLoop,
-        window_id: winit::window::WindowId,
+        _window_id: winit::window::WindowId,
         event: WindowEvent,
     ) {
         match event {
@@ -184,6 +193,8 @@ impl<'a> ApplicationHandler for App<'a> {
 
                     if let Some(scene) = &self.scene {
                         self.runtime.block_on(async {
+                            scene.update().await;
+                            
                             if let Err(e) = state.render(scene.clone()).await {
                                 tracing::error!("{e}");
                             }
@@ -202,12 +213,12 @@ impl<'a> ApplicationHandler for App<'a> {
                 }
             }
             WindowEvent::KeyboardInput {
-                device_id,
+                device_id: _,
                 event,
-                is_synthetic,
+                is_synthetic: _,
             } => {
                 match event.physical_key {
-                    PhysicalKey::Code(KeyCode::KeyQ) => { event_loop.exit() }
+                    PhysicalKey::Code(KeyCode::KeyQ) => event_loop.exit(),
                     PhysicalKey::Code(KeyCode::KeyA) => {
                         if let Some(scene) = &self.scene {
                             let cam = scene.camera.blocking_read();
@@ -265,8 +276,7 @@ impl<'a> ApplicationHandler for App<'a> {
                     event_loop.exit();
                 }
             }
-            _ => {
-                            }
+            _ => {}
         }
     }
 }

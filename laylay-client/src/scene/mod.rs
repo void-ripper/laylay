@@ -6,12 +6,14 @@ use light::Light;
 use node::{Node, NodePtr};
 use tokio::sync::RwLock;
 
+use crate::math::matrix;
+
 pub mod camera;
 pub mod drawable;
+pub mod material;
 pub mod model;
 pub mod node;
 pub mod light;
-
 
 pub type ScenePtr = Arc<Scene>;
 
@@ -19,7 +21,7 @@ pub struct Scene {
     pub drawables: RwLock<Vec<DrawablePtr>>,
     root: NodePtr,
     pub camera: RwLock<Camera>,
-    pub lights: RwLock<Vec<RwLock<Light>>>,
+    pub lights: RwLock<Vec<Light>>,
 }
 
 impl Scene {
@@ -32,7 +34,7 @@ impl Scene {
             drawables: RwLock::new(Vec::new()),
             root: Node::new(),
             camera: RwLock::new(camera),
-            lights: RwLock::new(Vec::new()),
+            lights: RwLock::new(vec![Light::new()]),
         })
     }
 
@@ -40,6 +42,8 @@ impl Scene {
         self.drawables.write().await.push(d);
     }
 
-    pub fn update(&self) {}
+    pub async fn update(&self) {
+        self.root.update(&matrix::IDENTITY).await;
+    }
 
 }

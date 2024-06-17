@@ -1,9 +1,10 @@
 use super::vector;
 
 pub type Matrix = [f32; 16];
+pub const IDENTITY: [f32; 16] = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0];
 
 pub fn new() -> Matrix {
-    [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+    IDENTITY.clone()
 }
 
 pub fn identity(m: &mut Matrix) {

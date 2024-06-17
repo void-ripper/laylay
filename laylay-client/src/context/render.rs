@@ -1,20 +1,11 @@
 use wgpu::{
-    util::{BufferInitDescriptor, DeviceExt},
-    BindGroup, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingType, Buffer, BufferBindingType, BufferUsages, IndexFormat,
-    PipelineCompilationOptions, ShaderStages, SurfaceTargetUnsafe,
+    util::DeviceExt, BindGroup, Buffer, IndexFormat, PipelineCompilationOptions, SurfaceTargetUnsafe
 };
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::scene::{
-    light::RawLight, model::{self, Vertex}, ScenePtr
+    camera::{Camera, RawCamera}, drawable::Drawable, light::{Light, RawLight}, model::{self, Vertex}, ScenePtr
 };
-
-#[repr(C)]
-#[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
-pub struct CameraUniform {
-    pub view_proj: [f32; 16],
-}
 
 pub struct RenderContext<'w> {
     pub surface: wgpu::Surface<'w>,
@@ -25,10 +16,12 @@ pub struct RenderContext<'w> {
     pub window: Window,
     render_pipeline: wgpu::RenderPipeline,
     pub vertex_buffer: Buffer,
-    pub camera_bind_group: BindGroup,
-    pub camera: CameraUniform,
+    camera: RawCamera,
     camera_buffer: Buffer,
+    camera_bind_group: BindGroup,
     lights: [RawLight; 10],
+    light_buffer: Buffer,
+    light_bind_group: BindGroup,
 }
 
 impl<'w> RenderContext<'w> {
@@ -92,45 +85,16 @@ impl<'w> RenderContext<'w> {
             source: wgpu::ShaderSource::Wgsl(include_str!("shader.wgsl").into()),
         });
 
-        let camera = CameraUniform {
-            view_proj: [
-                1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-            ],
-        };
-        let camera_buffer = device.create_buffer_init(&BufferInitDescriptor {
-            label: Some("Camera Buffer"),
-            contents: bytemuck::cast_slice(&[camera]),
-            usage: BufferUsages::UNIFORM | BufferUsages::COPY_DST,
-        });
+        let (camera, camera_buffer, camera_bind_group_layout, camera_bind_group) =
+            Camera::setup(&device);
 
-        let camera_bind_group_layout =
-            device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-                label: Some("Camera Bind Group Layout"),
-                entries: &[BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: ShaderStages::VERTEX,
-                    ty: BindingType::Buffer {
-                        ty: BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-            });
-
-        let camera_bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("Camera Bind Group"),
-            layout: &camera_bind_group_layout,
-            entries: &[BindGroupEntry {
-                binding: 0,
-                resource: camera_buffer.as_entire_binding(),
-            }],
-        });
+        let (lights, light_buffer, light_bind_group_layout, light_bind_group) =
+            Light::setup(&device);
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&camera_bind_group_layout],
+                bind_group_layouts: &[&camera_bind_group_layout, &light_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -140,8 +104,8 @@ impl<'w> RenderContext<'w> {
             vertex: wgpu::VertexState {
                 compilation_options: PipelineCompilationOptions::default(),
                 module: &shader,
-                entry_point: "vs_main",     // 1.
-                buffers: &[Vertex::desc()], // 2.
+                entry_point: "vs_main",
+                buffers: &[Vertex::desc(), Drawable::instace_desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 // 3.
@@ -183,11 +147,6 @@ impl<'w> RenderContext<'w> {
             usage: wgpu::BufferUsages::VERTEX,
         });
 
-        let lights = [RawLight {
-            pos: [0.0, 0.0, 0.0],
-            color: [0.0, 0.0, 0.0],
-        }; 10];
-        
         Self {
             window: win,
             surface,
@@ -201,6 +160,8 @@ impl<'w> RenderContext<'w> {
             camera_buffer,
             camera,
             lights,
+            light_buffer,
+            light_bind_group,
         }
     }
 
@@ -221,6 +182,8 @@ impl<'w> RenderContext<'w> {
         }
         self.queue
             .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera]));
+        self.queue
+            .write_buffer(&self.light_buffer, 0, bytemuck::cast_slice(&self.lights));
 
         let output = self.surface.get_current_texture()?;
         let view = output
@@ -256,14 +219,18 @@ impl<'w> RenderContext<'w> {
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.light_bind_group, &[]);
 
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.draw(0..3, 0..1);
 
             for drw in drawables.iter() {
+                drw.update().await;
                 render_pass.set_vertex_buffer(0, drw.vertex_buffer.slice(..));
+                render_pass.set_vertex_buffer(1, drw.instance_buffer.slice(..));
                 render_pass.set_index_buffer(drw.index_buffer.slice(..), IndexFormat::Uint32);
-                render_pass.draw_indexed(0..drw.index_count, 0, 0..1);
+                let inst_count = drw.instances.read().await.len();
+                render_pass.draw_indexed(0..drw.index_count, 0, 0..inst_count as u32);
             }
         };
 
