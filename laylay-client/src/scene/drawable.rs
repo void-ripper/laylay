@@ -1,22 +1,33 @@
-use std::{collections::HashMap, sync::{atomic::{AtomicU64, Ordering}, Arc}};
+use std::{
+    collections::HashMap,
+    sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc,
+    },
+};
 
 use gltf::Primitive;
 use tokio::sync::{Mutex, RwLock};
-use wgpu::{util::DeviceExt, Buffer, BufferAddress, Device, VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode};
+use wgpu::{
+    util::DeviceExt, Buffer, BufferAddress, Device, VertexAttribute, VertexBufferLayout,
+    VertexFormat, VertexStepMode,
+};
 
 use crate::math::matrix::Matrix;
 
-use super::{model::{self, Vertex}, node::NodePtr};
+use super::{material::Material, model::Vertex, node::NodePtr};
 
-static ID_POOL: AtomicU64 = AtomicU64::new(1);
+static ID_POOL: AtomicU32 = AtomicU32::new(1);
 
 pub type DrawablePtr = Arc<Drawable>;
 
 pub struct Drawable {
-    id: u64,
+    pub id: u32,
     pub instances: RwLock<HashMap<u32, NodePtr>>,
     instance_matrices: Mutex<Vec<[f32; 16]>>,
+    instance_materials: Mutex<Vec<Material>>,
     pub instance_buffer: Buffer,
+    pub instance_material_buffer: Buffer,
     pub vertex_buffer: Buffer,
     pub index_buffer: Buffer,
     pub vertex_count: u32,
@@ -33,7 +44,7 @@ impl Drawable {
         let mut indices = Vec::new();
 
         if let Some(pos) = reader.read_positions().zip(reader.read_normals()) {
-            for (pos , norm)in pos.0.zip(pos.1) {
+            for (pos, norm) in pos.0.zip(pos.1) {
                 vertices.push(Vertex {
                     position: pos,
                     normal: norm,
@@ -49,11 +60,19 @@ impl Drawable {
         }
 
         let instance_matrices = Vec::new();
+        let instance_materials = Vec::new();
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
             contents: bytemuck::cast_slice(&instance_matrices),
             usage: wgpu::BufferUsages::VERTEX,
         });
+
+        let instance_material_buffer =
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Instance Material Buffer"),
+                contents: bytemuck::cast_slice(&instance_materials),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
@@ -71,7 +90,9 @@ impl Drawable {
             id,
             instances: RwLock::new(HashMap::new()),
             instance_matrices: Mutex::new(instance_matrices),
+            instance_materials: Mutex::new(instance_materials),
             instance_buffer,
+            instance_material_buffer,
             vertex_buffer,
             index_buffer,
             vertex_count: vertices.len() as _,
@@ -82,8 +103,10 @@ impl Drawable {
     pub async fn update(&self) {
         let insts = self.instances.read().await;
         let mut matrices = self.instance_matrices.lock().await;
+        let mut materials = self.instance_materials.lock().await;
         for (id, n) in insts.values().enumerate() {
             matrices[id] = *n.world_transform.read().await;
+            materials[id] = n.material.lock().await.unwrap();
         }
     }
 

@@ -1,4 +1,4 @@
-use std::{fs::OpenOptions, io::Write, path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::Arc};
 
 use laylay_common::{Info, Message, SecretKey, Version};
 use tokio::{net::TcpStream, runtime::Runtime, sync::mpsc};
@@ -17,15 +17,16 @@ use crate::{
     scene::{drawable::Drawable, Scene, ScenePtr},
 };
 
-fn log(msg: &str) {
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open("/sdcard/Documents/laylay/log.txt")
-        .unwrap();
+// fn log(msg: &str) {
+//     use std::{fs::OpenOptions, io::Write};
+//     let mut file = OpenOptions::new()
+//         .create(true)
+//         .append(true)
+//         .open("/sdcard/Documents/laylay/log.txt")
+//         .unwrap();
 
-    file.write_all(msg.as_bytes()).unwrap();
-}
+//     file.write_all(msg.as_bytes()).unwrap();
+// }
 
 pub struct App<'a> {
     prikey: SecretKey,
@@ -194,7 +195,7 @@ impl<'a> ApplicationHandler for App<'a> {
                     if let Some(scene) = &self.scene {
                         self.runtime.block_on(async {
                             scene.update().await;
-                            
+
                             if let Err(e) = state.render(scene.clone()).await {
                                 tracing::error!("{e}");
                             }

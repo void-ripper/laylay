@@ -1,10 +1,16 @@
 use wgpu::{
-    util::DeviceExt, BindGroup, Buffer, IndexFormat, PipelineCompilationOptions, SurfaceTargetUnsafe
+    util::DeviceExt, BindGroup, Buffer, IndexFormat, PipelineCompilationOptions,
+    SurfaceTargetUnsafe,
 };
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::scene::{
-    camera::{Camera, RawCamera}, drawable::Drawable, light::{Light, RawLight}, model::{self, Vertex}, ScenePtr
+    camera::{Camera, RawCamera},
+    drawable::Drawable,
+    light::{Light, RawLight},
+    material::Material,
+    model::{self, Vertex},
+    ScenePtr,
 };
 
 pub struct RenderContext<'w> {
@@ -105,7 +111,11 @@ impl<'w> RenderContext<'w> {
                 compilation_options: PipelineCompilationOptions::default(),
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[Vertex::desc(), Drawable::instace_desc()],
+                buffers: &[
+                    Vertex::desc(),
+                    Drawable::instace_desc(),
+                    Material::instace_desc(),
+                ],
             },
             fragment: Some(wgpu::FragmentState {
                 // 3.
@@ -224,7 +234,7 @@ impl<'w> RenderContext<'w> {
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.draw(0..3, 0..1);
 
-            for drw in drawables.iter() {
+            for drw in drawables.values() {
                 drw.update().await;
                 render_pass.set_vertex_buffer(0, drw.vertex_buffer.slice(..));
                 render_pass.set_vertex_buffer(1, drw.instance_buffer.slice(..));

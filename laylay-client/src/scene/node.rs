@@ -12,7 +12,10 @@ use tokio::sync::{Mutex, RwLock};
 
 use crate::math::matrix::{self, Matrix};
 
-use super::drawable::DrawablePtr;
+use super::{
+    drawable::DrawablePtr,
+    material::{Material, DEFAULT},
+};
 
 pub type NodePtr = Arc<Node>;
 static NODE_ID_POOL: AtomicU32 = AtomicU32::new(1);
@@ -25,6 +28,7 @@ pub struct Node {
     parent: RwLock<Option<NodePtr>>,
     children: RwLock<HashMap<u32, NodePtr>>,
     drawable: Mutex<Option<DrawablePtr>>,
+    pub material: Mutex<Option<Material>>,
 }
 
 impl Node {
@@ -38,6 +42,7 @@ impl Node {
             parent: RwLock::new(None),
             children: RwLock::new(HashMap::new()),
             drawable: Mutex::new(None),
+            material: Mutex::new(None),
         })
     }
 
@@ -57,9 +62,13 @@ impl Node {
 
     pub async fn set_drawable(&self, drw: DrawablePtr) {
         *self.drawable.lock().await = Some(drw.clone());
-        drw.instances.write().await.insert(self.id, self.me.upgrade().unwrap());
+        *self.material.lock().await = Some(DEFAULT.clone());
+        drw.instances
+            .write()
+            .await
+            .insert(self.id, self.me.upgrade().unwrap());
     }
-    
+
     pub fn update<'a>(&'a self, pwt: &'a [f32; 16]) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
         Box::pin(async move {
             {

@@ -2,6 +2,7 @@ use wgpu::{util::DeviceExt, BindGroup, BindGroupLayout, Buffer, Device};
 
 use super::node::{Node, NodePtr};
 
+#[repr(u8)]
 pub enum LightKind {
     Directional = 0,
     Spot = 1,
@@ -11,15 +12,8 @@ pub enum LightKind {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct RawLight {
+    pub enabled: u32,
     pub kind: u32,
-    pub pos: [f32; 3],
-    pub color: [f32; 3],
-}
-
-pub struct Light {
-    pub node: NodePtr,
-    pub enabled: bool,
-    pub kind: LightKind,
     pub position: [f32; 3],
     pub ambient: [f32; 3],
     pub diffuse: [f32; 3],
@@ -29,12 +23,33 @@ pub struct Light {
     pub attenutation: [f32; 3],
 }
 
+pub struct Light {
+    pub node: NodePtr,
+    pub raw: RawLight,
+}
+
 impl Light {
     pub fn new() -> Self {
         Self {
             node: Node::new(),
-            enabled: true,
-            kind: LightKind::Spot,
+            raw: RawLight {
+                enabled: 1,
+                kind: LightKind::Spot as u32,
+                position: [0.0, 0.0, 0.0],
+                ambient: [1.0, 1.0, 1.0],
+                diffuse: [1.0, 1.0, 1.0],
+                specular: [1.0, 1.0, 1.0],
+                cut_off: 0.35,
+                size: 40.0,
+                attenutation: [1.0, 0.5, 0.0],
+            },
+        }
+    }
+
+    pub fn setup(device: &Device) -> ([RawLight; 10], Buffer, BindGroupLayout, BindGroup) {
+        let raws = [RawLight {
+            enabled: 1,
+            kind: LightKind::Spot as u32,
             position: [0.0, 0.0, 0.0],
             ambient: [1.0, 1.0, 1.0],
             diffuse: [1.0, 1.0, 1.0],
@@ -42,14 +57,6 @@ impl Light {
             cut_off: 0.35,
             size: 40.0,
             attenutation: [1.0, 0.5, 0.0],
-        }
-    }
-
-    pub fn setup(device: &Device) -> ([RawLight; 10], Buffer, BindGroupLayout, BindGroup) {
-        let raws = [RawLight {
-            kind: 0,
-            pos: [0.0, 0.0, 0.0],
-            color: [1.0, 1.0, 1.0],
         }; 10];
 
         let light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -82,6 +89,11 @@ impl Light {
             label: None,
         });
 
-        (raws, light_buffer, light_bind_group_layout, light_bind_group)
+        (
+            raws,
+            light_buffer,
+            light_bind_group_layout,
+            light_bind_group,
+        )
     }
 }
