@@ -5,23 +5,14 @@ struct CameraUniform {
 @group(0) @binding(0)
 var<uniform> camera: CameraUniform;
 
-struct Material {
-    @location(9) ambient: vec3<f32>, 
-    @location(10) diffuse: vec3<f32>,
-    @location(11) specular: vec3<f32>,    
-    @location(12) shininess: f32,
-    @location(13) opacity: f32,
-}
-
 struct Light {
-    enabled: u32,
     kind: u32,
+    cut_off: f32,
     position: vec3<f32>,
+    direction: vec3<f32>,
     ambient: vec3<f32>,
     diffuse: vec3<f32>,
     specular: vec3<f32>,
-    cut_off: f32,
-    size: f32,
     attenutation: vec3<f32>,
 }
 
@@ -31,27 +22,47 @@ var<uniform> lights: array<Light, 10>;
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) normal: vec3<f32>,
-    @location(2) color: vec3<f32>,
+}
+
+struct Material {
+    @location(6) ambient: vec3<f32>, 
+    @location(7) diffuse: vec3<f32>,
+    @location(8) specular: vec3<f32>,    
+    @location(9) shininess: f32,
+    @location(10) opacity: f32,
 }
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) color: vec3<f32>,
+    @location(0) normal: vec3<f32>,
+    @location(1) ambient: vec3<f32>, 
+    @location(2) diffuse: vec3<f32>,
+    @location(3) specular: vec3<f32>,    
+    @location(4) shininess: f32,
+    @location(5) opacity: f32,
 };
 
 @vertex
 fn vs_main(
     @builtin(vertex_index) in_vertex_index: u32,
     model: VertexInput,
-    @location(5) transform: mat4x4<f32>,
+    @location(2) t0: vec4<f32>,
+    @location(3) t1: vec4<f32>,
+    @location(4) t2: vec4<f32>,
+    @location(5) t3: vec4<f32>,
     material: Material,
 ) -> VertexOutput {
     var out: VertexOutput;
-    // let x = f32(1 - i32(in_vertex_index)) * 0.5;
-    // let y = f32(i32(in_vertex_index & 1u) * 2 - 1) * 0.5;
-    // out.clip_position = vec4<f32>(x, y, 0.0, 1.0);
-    out.color = model.color;
+    var transform = mat4x4<f32>(t0, t1, t2, t3);
+
+    out.ambient = material.ambient;
+    out.diffuse = material.diffuse;
+    out.specular = material.specular;
+    out.shininess = material.shininess;
+    out.opacity = material.opacity;
     out.clip_position = camera.view_proj * transform * vec4<f32>(model.position, 1.0);
+    out.normal = (transform * vec4<f32>(model.normal, 1.0)).xyz;
+
     return out;
 }
 
@@ -62,29 +73,29 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     var light = lights[0];
 
     // directional light
-    if (light.kind == 0) {
-        var L = normalize(-light.dir); // direction
-        var E = normalize(light.pos - in.clip_position); // we are in Eye Coordinates, so EyePos is (0,0,0)
-        var R = reflect(L, norm);
+    if (light.kind == 1) {
+        var L = normalize(-light.direction); // direction
+        var E = normalize(light.position - in.clip_position.xyz); // we are in Eye Coordinates, so EyePos is (0,0,0)
+        var R = reflect(L, in.normal);
 
-        var Iamb = light.ambient * material.ambient;
-        var Idiff = light.diffuse * (material.diffuse * max(dot(norm, L), 0.0));
-        var Ispec = light.specular * (material.specular * pow(max(dot(E, R), 0.0), material.shininess));
+        var Iamb = light.ambient * in.ambient;
+        var Idiff = light.diffuse * (in.diffuse * max(dot(in.normal, L), 0.0));
+        var Ispec = light.specular * (in.specular * pow(max(dot(E, R), 0.0), in.shininess));
 
         out = vec4(Iamb +  (Idiff + Ispec) * (1.0 - shadow), 1.0);
     }
     // spot light
-    else if (light.kind == 1) {
+    else if (light.kind == 2) {
         var L = normalize(-light.direction);
-        var E = normalize(light.position - in.clip_position);
-        var R = reflect(L, norm);
+        var E = normalize(light.position - in.clip_position.xyz);
+        var R = reflect(L, in.normal);
         var theta: f32 = dot(-E, L);
 
-        var color = light.ambient * material.ambient;
+        var color = light.ambient * in.ambient;
 
-        if (theta > light.cutOff) {
-            var Idiff = light.diffuse * (material.diffuse * max(dot(norm, L), 0.0));
-            var Ispec = light.specular * (material.specular * pow(max(dot(E, R), 0.0), material.shininess));
+        if (theta > light.cut_off) {
+            var Idiff = light.diffuse * (in.diffuse * max(dot(in.normal, L), 0.0));
+            var Ispec = light.specular * (in.specular * pow(max(dot(E, R), 0.0), in.shininess));
 
             color += theta * (1.0 - shadow) * (Idiff + Ispec);
         }
@@ -92,16 +103,17 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         out = vec4(color , 1.0);
     }
     // point light
-    else {
-        var dis: f32 = length(light.position - in.clip_position);
+    else if (light.kind == 3) {
+        var dis: f32 = length(light.position - in.clip_position.xyz);
         var attenutation: f32 = 1.0 / (light.attenutation.x + light.attenutation.y * dis + light.attenutation.z * dis * dis);
 
-        var Iamb = light.ambient * material.ambient * attenutation;
-        var Idiff = light.diffuse * material.diffuse * attenutation;
-        var Ispec = light.specular * material.specular * attenutation;
+        var Iamb = light.ambient * in.ambient * attenutation;
+        var Idiff = light.diffuse * in.diffuse * attenutation;
+        var Ispec = light.specular * in.specular * attenutation;
 
         out = vec4(Iamb + (1.0 - shadow) * (Idiff + Ispec), 1.0);
-    }    
+    }
   
-    return vec4<f32>(in.color, 1.0);
+    // return vec4<f32>(in.color, 1.0);
+    return out;
 }

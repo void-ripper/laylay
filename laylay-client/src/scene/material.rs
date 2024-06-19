@@ -26,29 +26,27 @@ impl Material {
             attributes: &[
                 VertexAttribute {
                     offset: 0,
-                    // While our vertex shader only uses locations 0, and 1 now, in later tutorials, we'll
-                    // be using 2, 3, and 4, for Vertex. We'll start at slot 5, not conflict with them later
-                    shader_location: 9,
+                    shader_location: 6,
                     format: VertexFormat::Float32x3,
                 },
                 VertexAttribute {
                     offset: std::mem::size_of::<[f32; 3]>() as BufferAddress,
-                    shader_location: 10,
+                    shader_location: 7,
                     format: VertexFormat::Float32x3,
                 },
                 VertexAttribute {
                     offset: std::mem::size_of::<[f32; 6]>() as BufferAddress,
-                    shader_location: 11,
+                    shader_location: 8,
                     format: VertexFormat::Float32x3,
                 },
                 VertexAttribute {
                     offset: std::mem::size_of::<[f32; 9]>() as BufferAddress,
-                    shader_location: 12,
+                    shader_location: 9,
                     format: VertexFormat::Float32,
                 },
                 VertexAttribute {
                     offset: std::mem::size_of::<[f32; 10]>() as BufferAddress,
-                    shader_location: 13,
+                    shader_location: 10,
                     format: VertexFormat::Float32,
                 },
             ],

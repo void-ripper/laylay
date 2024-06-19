@@ -1,7 +1,4 @@
-use wgpu::{
-    util::DeviceExt, BindGroup, Buffer, IndexFormat, PipelineCompilationOptions,
-    SurfaceTargetUnsafe,
-};
+use wgpu::{BindGroup, Buffer, IndexFormat, PipelineCompilationOptions, SurfaceTargetUnsafe};
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::scene::{
@@ -9,7 +6,7 @@ use crate::scene::{
     drawable::Drawable,
     light::{Light, RawLight},
     material::Material,
-    model::{self, Vertex},
+    model::Vertex,
     ScenePtr,
 };
 
@@ -21,7 +18,6 @@ pub struct RenderContext<'w> {
     pub size: winit::dpi::PhysicalSize<u32>,
     pub window: Window,
     render_pipeline: wgpu::RenderPipeline,
-    pub vertex_buffer: Buffer,
     camera: RawCamera,
     camera_buffer: Buffer,
     camera_bind_group: BindGroup,
@@ -151,12 +147,6 @@ impl<'w> RenderContext<'w> {
             multiview: None, // 5.
         });
 
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(model::VERTICES),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
         Self {
             window: win,
             surface,
@@ -165,7 +155,6 @@ impl<'w> RenderContext<'w> {
             config,
             size,
             render_pipeline,
-            vertex_buffer,
             camera_bind_group,
             camera_buffer,
             camera,
@@ -190,6 +179,12 @@ impl<'w> RenderContext<'w> {
             cam.update().await;
             self.camera.view_proj = cam.transform;
         }
+        {
+            let mut lights = scene.lights.write().await;
+            for light in lights.iter_mut() {
+                light.update().await;
+            }
+        }
         self.queue
             .write_buffer(&self.camera_buffer, 0, bytemuck::cast_slice(&[self.camera]));
         self.queue
@@ -206,6 +201,19 @@ impl<'w> RenderContext<'w> {
             });
 
         let drawables = scene.drawables.read().await;
+
+        for drw in drawables.values() {
+            let mat = drw.instance_matrices.lock().await;
+            let matb = drw.instance_materials.lock().await;
+            self.queue
+                .write_buffer(&drw.instance_buffer, 0, bytemuck::cast_slice(&*mat));
+            self.queue.write_buffer(
+                &drw.instance_material_buffer,
+                0,
+                bytemuck::cast_slice(&*matb),
+            );
+        }
+
         {
             let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("Render Pass"),
@@ -214,9 +222,9 @@ impl<'w> RenderContext<'w> {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color {
-                            r: 0.1,
-                            g: 0.1,
-                            b: 0.1,
+                            r: 0.05,
+                            g: 0.05,
+                            b: 0.05,
                             a: 1.0,
                         }),
                         store: wgpu::StoreOp::Store,
@@ -231,16 +239,17 @@ impl<'w> RenderContext<'w> {
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.set_bind_group(1, &self.light_bind_group, &[]);
 
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
-            render_pass.draw(0..3, 0..1);
-
             for drw in drawables.values() {
-                drw.update().await;
-                render_pass.set_vertex_buffer(0, drw.vertex_buffer.slice(..));
-                render_pass.set_vertex_buffer(1, drw.instance_buffer.slice(..));
-                render_pass.set_index_buffer(drw.index_buffer.slice(..), IndexFormat::Uint32);
                 let inst_count = drw.instances.read().await.len();
-                render_pass.draw_indexed(0..drw.index_count, 0, 0..inst_count as u32);
+
+                if inst_count > 0 {
+                    drw.update().await;
+                    render_pass.set_vertex_buffer(0, drw.vertex_buffer.slice(..));
+                    render_pass.set_vertex_buffer(1, drw.instance_buffer.slice(..));
+                    render_pass.set_vertex_buffer(2, drw.instance_material_buffer.slice(..));
+                    render_pass.set_index_buffer(drw.index_buffer.slice(..), IndexFormat::Uint32);
+                    render_pass.draw_indexed(0..drw.index_count, 0, 0..inst_count as u32);
+                }
             }
         };
 

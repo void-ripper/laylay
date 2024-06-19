@@ -1,61 +1,77 @@
 use wgpu::{util::DeviceExt, BindGroup, BindGroupLayout, Buffer, Device};
 
+use crate::math::matrix::{self, Matrix, IDENTITY};
+
 use super::node::{Node, NodePtr};
 
 #[repr(u8)]
 pub enum LightKind {
-    Directional = 0,
-    Spot = 1,
-    Point = 2,
+    Off = 0,
+    Directional = 1,
+    Spot = 2,
+    Point = 3,
 }
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct RawLight {
-    pub enabled: u32,
     pub kind: u32,
+    pub cut_off: f32,
     pub position: [f32; 3],
+    pub dir: [f32; 3],
     pub ambient: [f32; 3],
     pub diffuse: [f32; 3],
     pub specular: [f32; 3],
-    pub cut_off: f32,
-    pub size: f32,
     pub attenutation: [f32; 3],
 }
 
 pub struct Light {
     pub node: NodePtr,
+    pub target: Option<NodePtr>,
+    pub projection: Matrix,
+    pub size: f32,
     pub raw: RawLight,
 }
 
 impl Light {
     pub fn new() -> Self {
+        let mut proj = IDENTITY.clone();
+        let size = 40.0;
+        matrix::ortho(&mut proj, -size, size, -size, size, 0.01, 20.5);
         Self {
             node: Node::new(),
+            projection: proj,
+            target: None,
+            size,
             raw: RawLight {
-                enabled: 1,
-                kind: LightKind::Spot as u32,
+                kind: LightKind::Point as u32,
                 position: [0.0, 0.0, 0.0],
+                dir: [0.0, 0.0, 0.0],
                 ambient: [1.0, 1.0, 1.0],
                 diffuse: [1.0, 1.0, 1.0],
                 specular: [1.0, 1.0, 1.0],
                 cut_off: 0.35,
-                size: 40.0,
                 attenutation: [1.0, 0.5, 0.0],
             },
         }
     }
 
+    pub async fn update(&mut self) {
+        let wt = self.node.world_transform.read().await.clone();
+        self.raw.position[0] = wt[12];
+        self.raw.position[1] = wt[13];
+        self.raw.position[2] = wt[14];
+    }
+
     pub fn setup(device: &Device) -> ([RawLight; 10], Buffer, BindGroupLayout, BindGroup) {
         let raws = [RawLight {
-            enabled: 1,
-            kind: LightKind::Spot as u32,
+            kind: LightKind::Point as u32,
             position: [0.0, 0.0, 0.0],
+            dir: [0.0, 0.0, 0.0],
             ambient: [1.0, 1.0, 1.0],
             diffuse: [1.0, 1.0, 1.0],
             specular: [1.0, 1.0, 1.0],
             cut_off: 0.35,
-            size: 40.0,
             attenutation: [1.0, 0.5, 0.0],
         }; 10];
 
