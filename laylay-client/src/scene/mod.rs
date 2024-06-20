@@ -19,7 +19,7 @@ pub type ScenePtr = Arc<Scene>;
 
 pub struct Scene {
     pub drawables: RwLock<HashMap<u32, DrawablePtr>>,
-    root: NodePtr,
+    pub root: NodePtr,
     pub camera: RwLock<Camera>,
     pub lights: RwLock<Vec<Light>>,
 }

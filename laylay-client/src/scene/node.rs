@@ -10,7 +10,7 @@ use std::{
 
 use tokio::sync::{Mutex, RwLock};
 
-use crate::math::matrix::{self, Matrix};
+use crate::math::matrix::{self, Matrix, IDENTITY};
 
 use super::{
     drawable::DrawablePtr,
@@ -21,7 +21,7 @@ pub type NodePtr = Arc<Node>;
 static NODE_ID_POOL: AtomicU32 = AtomicU32::new(1);
 
 pub struct Node {
-    id: u32,
+    pub id: u32,
     me: Weak<Self>,
     pub transform: RwLock<Matrix>,
     pub world_transform: RwLock<Matrix>,
@@ -63,10 +63,7 @@ impl Node {
     pub async fn set_drawable(&self, drw: DrawablePtr) {
         *self.drawable.lock().await = Some(drw.clone());
         *self.material.lock().await = Some(DEFAULT.clone());
-        drw.instances
-            .write()
-            .await
-            .insert(self.id, self.me.upgrade().unwrap());
+        drw.add_node(self.me.upgrade().unwrap()).await;
     }
 
     pub fn update<'a>(&'a self, pwt: &'a [f32; 16]) -> Pin<Box<dyn Future<Output = ()> + 'a>> {

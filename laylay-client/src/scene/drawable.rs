@@ -9,25 +9,28 @@ use std::{
 use gltf::Primitive;
 use tokio::sync::{Mutex, RwLock};
 use wgpu::{
-    util::DeviceExt, Buffer, BufferAddress, Device, VertexAttribute, VertexBufferLayout,
-    VertexFormat, VertexStepMode,
+    util::DeviceExt, Buffer, BufferAddress, BufferUsages, Device, VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode
 };
 
-use crate::math::matrix::Matrix;
+use crate::math::matrix::{Matrix, IDENTITY};
 
-use super::{material::Material, model::Vertex, node::NodePtr};
+use super::{material::{Material, DEFAULT}, model::Vertex, node::NodePtr};
 
 static ID_POOL: AtomicU32 = AtomicU32::new(1);
 
 pub type DrawablePtr = Arc<Drawable>;
 
-pub struct Drawable {
-    pub id: u32,
-    pub instances: RwLock<HashMap<u32, NodePtr>>,
-    pub instance_matrices: Mutex<Vec<[f32; 16]>>,
-    pub instance_materials: Mutex<Vec<Material>>,
+pub struct Instances {
+    pub nodes: HashMap<u32, NodePtr>,
+    pub instance_matrices: Vec<[f32; 16]>,
+    pub instance_materials: Vec<Material>,
     pub instance_buffer: Buffer,
     pub instance_material_buffer: Buffer,
+}
+
+pub struct Drawable {
+    pub id: u32,
+    pub instances: Mutex<Instances>,
     pub vertex_buffer: Buffer,
     pub index_buffer: Buffer,
     pub vertex_count: u32,
@@ -63,14 +66,14 @@ impl Drawable {
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Instance Buffer"),
             contents: bytemuck::cast_slice(&instance_matrices),
-            usage: wgpu::BufferUsages::VERTEX,
+            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
         });
 
         let instance_material_buffer =
             device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("Instance Material Buffer"),
                 contents: bytemuck::cast_slice(&instance_materials),
-                usage: wgpu::BufferUsages::VERTEX,
+                usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
             });
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -87,11 +90,13 @@ impl Drawable {
 
         Arc::new(Self {
             id,
-            instances: RwLock::new(HashMap::new()),
-            instance_matrices: Mutex::new(instance_matrices),
-            instance_materials: Mutex::new(instance_materials),
-            instance_buffer,
-            instance_material_buffer,
+            instances: Mutex::new(Instances {
+                nodes: HashMap::new(),
+                instance_matrices,
+                instance_materials,
+                instance_buffer,
+                instance_material_buffer,
+            }),
             vertex_buffer,
             index_buffer,
             vertex_count: vertices.len() as _,
@@ -99,13 +104,33 @@ impl Drawable {
         })
     }
 
+    pub async fn add_node(&self, node: NodePtr) {
+        let mut insts = self.instances.lock().await;
+        insts.nodes.insert(node.id, node);
+        insts.instance_materials.push(DEFAULT);
+        insts.instance_matrices.push(IDENTITY);
+        insts.instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Instance Buffer"),
+            contents: bytemuck::cast_slice(&insts.instance_matrices),
+            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+        });
+
+        insts.instance_material_buffer =
+            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Instance Material Buffer"),
+                contents: bytemuck::cast_slice(&insts.instance_materials),
+                usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+            });
+    }
+
+    pub async fn remove_node(&self, node: NodePtr) {}
+
     pub async fn update(&self) {
-        let insts = self.instances.read().await;
-        let mut matrices = self.instance_matrices.lock().await;
-        let mut materials = self.instance_materials.lock().await;
-        for (id, n) in insts.values().enumerate() {
-            matrices[id] = *n.world_transform.read().await;
-            materials[id] = n.material.lock().await.unwrap();
+        let mut insts = self.instances.lock().await;
+        // TODO this is very ugly
+        for (id, n) in insts.nodes.clone().values().enumerate() {
+            insts.instance_matrices[id] = *n.world_transform.read().await;
+            insts.instance_materials[id] = n.material.lock().await.unwrap();
         }
     }
 

@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc};
+use std::{path::PathBuf, sync::{Arc, Weak}};
 
 use laylay_common::{Info, Message, SecretKey, Version};
 use tokio::{net::TcpStream, runtime::Runtime, sync::mpsc};
@@ -14,7 +14,7 @@ use crate::{
     errors::ClientError,
     logger::Logger,
     math::matrix,
-    scene::{drawable::Drawable, Scene, ScenePtr},
+    scene::{drawable::Drawable, node::Node, Scene, ScenePtr},
 };
 
 // fn log(msg: &str) {
@@ -27,42 +27,28 @@ use crate::{
 
 //     file.write_all(msg.as_bytes()).unwrap();
 // }
+pub static mut CTX: Option<Arc<Context<'static>>> = None;
 
-pub struct App<'a> {
+pub struct Context<'a> {
+    me: Weak<Context<'a>>,
     prikey: SecretKey,
-    counter: FrameCounter,
-    runtime: Arc<Runtime>,
+    pub runtime: Arc<Runtime>,
     state: Option<RenderContext<'a>>,
     xr: Option<XrContext>,
     scene: Option<ScenePtr>,
 }
 
+pub struct App<'a> {
+    counter: FrameCounter,
+}
+
 impl<'a> App<'a> {
     pub fn new() -> Result<Self, ClientError> {
-        let folder = if cfg!(target_os = "android") {
-            "/sdcard/Documents/laylay/"
-        } else {
-            "data/"
-        };
-        let folder = PathBuf::from(folder);
-
-        if !folder.exists() {
-            std::fs::create_dir_all(&folder)?;
-        }
-
-        let prikey = laylay_common::get_private_key(folder)?;
-        let public = prikey.public_key().to_sec1_bytes();
-        let runtime = Arc::new(Runtime::new()?);
         let app = Self {
-            prikey: prikey.clone(),
             counter: FrameCounter::new(),
-            runtime: runtime.clone(),
-            state: None,
-            xr: None,
-            scene: None,
         };
 
-        let ret: Result<(), ClientError> = app.runtime.block_on(async {
+        let ret: Result<(), ClientError> = app.ctx.runtime.block_on(async {
             let addr = if cfg!(target_os = "android") {
                 "192.168.1.9"
             } else {
@@ -77,41 +63,7 @@ impl<'a> App<'a> {
             };
             laylay_common::write_greeting(&mut stream, &greeting).await?;
 
-            let ret = laylay_common::read_greeting(&mut stream).await?;
-            if let Message::Greeting {
-                pubkey,
-                version: _,
-                info: _,
-            } = ret
-            {
-                let shared = laylay_common::shared_secret(pubkey, &prikey);
-                let (mut rx, mut tx) = stream.into_split();
-                let (txch, mut rxch) = mpsc::channel::<Message>(10);
-
-                tracing::subscriber::set_global_default(Logger::new(runtime, txch))?;
-
-                let shared0 = shared.clone();
-                tokio::spawn(async move {
-                    while let Some(msg) = rxch.recv().await {
-                        if let Err(e) = laylay_common::write(&shared0, &mut tx, &msg).await {
-                            tracing::error!("{e}");
-                        }
-                    }
-                });
-
-                tokio::spawn(async move {
-                    loop {
-                        let ret = laylay_common::read(&shared, &mut rx).await;
-                        match ret {
-                            Ok(msg) => {}
-                            Err(e) => {
-                                tracing::error!("{e}");
-                            }
-                        }
-                    }
-                });
-            }
-
+           
             Ok(())
         });
 
@@ -138,7 +90,7 @@ impl<'a> ApplicationHandler for App<'a> {
         let window = event_loop
             .create_window(Window::default_attributes())
             .unwrap();
-        let (scene, state) = self.runtime.block_on(async {
+        let (scene, state) = self.ctx.runtime.block_on(async {
             let size = window.inner_size();
             let aspect = size.width as f32 / size.height as f32;
             let state = RenderContext::new(window).await;
@@ -158,7 +110,10 @@ impl<'a> ApplicationHandler for App<'a> {
                         drawable.vertex_count,
                         drawable.index_count
                     );
-                    scene.add_drawable(drawable).await;
+                    scene.add_drawable(drawable.clone()).await;
+                    let node = Node::new();
+                    node.set_drawable(drawable).await;
+                    scene.root.add_child(node).await;
                 }
             }
 
@@ -167,9 +122,28 @@ impl<'a> ApplicationHandler for App<'a> {
         #[cfg(target_os = "macos")]
         state.window.request_redraw();
 
-        self.xr = xr;
-        self.state = Some(state);
-        self.scene = Some(scene);
+        let folder = if cfg!(target_os = "android") {
+            "/sdcard/Documents/laylay/"
+        } else {
+            "data/"
+        };
+        let folder = PathBuf::from(folder);
+
+        if !folder.exists() {
+            std::fs::create_dir_all(&folder).unwrap();
+        }
+
+        let prikey = laylay_common::get_private_key(folder).unwrap();
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let ctx = Arc::new_cyclic(|me| Context {
+            me: me.clone(),
+            prikey: prikey.clone(),
+            runtime: runtime.clone(),
+            xr,
+            state: Some(state),
+            scene: Some(scene),
+        });
+        unsafe { CTX = Some(ctx.clone()) };
         // self.runtime.
     }
 
