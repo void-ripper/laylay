@@ -55,6 +55,7 @@ impl<'w> RenderContext<'w> {
                 &wgpu::DeviceDescriptor {
                     required_features: wgpu::Features::empty(),
                     required_limits: wgpu::Limits::default(),
+                    memory_hints: wgpu::MemoryHints::default(),
                     label: None,
                 },
                 None,
@@ -103,10 +104,11 @@ impl<'w> RenderContext<'w> {
         let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Render Pipeline"),
             layout: Some(&render_pipeline_layout),
+            cache: None,
             vertex: wgpu::VertexState {
                 compilation_options: PipelineCompilationOptions::default(),
                 module: &shader,
-                entry_point: "vs_main",
+                entry_point: Some("vs_main"),
                 buffers: &[
                     Vertex::desc(),
                     Drawable::instace_desc(),
@@ -117,7 +119,7 @@ impl<'w> RenderContext<'w> {
                 // 3.
                 module: &shader,
                 compilation_options: PipelineCompilationOptions::default(),
-                entry_point: "fs_main",
+                entry_point: Some("fs_main"),
                 targets: &[Some(wgpu::ColorTargetState {
                     // 4.
                     format: config.format,
@@ -203,14 +205,16 @@ impl<'w> RenderContext<'w> {
         let drawables = scene.drawables.read().await;
 
         for drw in drawables.values() {
-            let mat = drw.instance_matrices.lock().await;
-            let matb = drw.instance_materials.lock().await;
-            self.queue
-                .write_buffer(&drw.instance_buffer, 0, bytemuck::cast_slice(&*mat));
+            let instances = drw.instances.lock().await;
             self.queue.write_buffer(
-                &drw.instance_material_buffer,
+                &instances.instance_buffer,
                 0,
-                bytemuck::cast_slice(&*matb),
+                bytemuck::cast_slice(&instances.instance_matrices),
+            );
+            self.queue.write_buffer(
+                &instances.instance_material_buffer,
+                0,
+                bytemuck::cast_slice(&instances.instance_materials),
             );
         }
 
@@ -240,13 +244,14 @@ impl<'w> RenderContext<'w> {
             render_pass.set_bind_group(1, &self.light_bind_group, &[]);
 
             for drw in drawables.values() {
-                let inst_count = drw.instances.read().await.len();
+                let instances = drw.instances.lock().await;
+                let inst_count = instances.nodes.len();
 
                 if inst_count > 0 {
                     drw.update().await;
                     render_pass.set_vertex_buffer(0, drw.vertex_buffer.slice(..));
-                    render_pass.set_vertex_buffer(1, drw.instance_buffer.slice(..));
-                    render_pass.set_vertex_buffer(2, drw.instance_material_buffer.slice(..));
+                    render_pass.set_vertex_buffer(1, instances.instance_buffer.slice(..));
+                    render_pass.set_vertex_buffer(2, instances.instance_material_buffer.slice(..));
                     render_pass.set_index_buffer(drw.index_buffer.slice(..), IndexFormat::Uint32);
                     render_pass.draw_indexed(0..drw.index_count, 0, 0..inst_count as u32);
                 }

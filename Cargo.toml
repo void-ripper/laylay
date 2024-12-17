@@ -11,13 +11,8 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace]
-members = [
-    "laylay-client",
-    "laylay-server",
-    "laylay-common",
-    "laylay-package"
-]
+members = ["laylay-client", "laylay-server", "laylay-common", "laylay-package"]
 resolver = "2"
 
 [workspace.dependencies]
-mlua = { version = "0.9.8", features = ["luau", "parking_lot", "vendored"] }
+mlua = { version = "0.10.2", features = ["luau", "vendored"] }

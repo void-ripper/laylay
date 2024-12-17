@@ -55,20 +55,20 @@ authorities = "org.khronos.openxr.runtime_broker;org.khronos.openxr.system_runti
 name = "org.khronos.openxr"
 
 [dependencies]
-bytemuck = { version = "1.16.0", features = ["derive"] }
+bytemuck = { version = "1.20.0", features = ["derive"] }
 gltf = "1.4.1"
 mlua.workspace = true
-openxr = { version = "0.18.0", features = ["loaded"] }
-tokio = { version = "1.38.0", features = ["full"] }
-tracing = "0.1.40"
-tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
-wgpu = "0.20.1"
+openxr = { version = "0.19.0", features = ["loaded"] }
+tokio = { version = "1.42.0", features = ["full"] }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }
+wgpu = "23.0.1"
 laylay-common = { path = "../laylay-common" }
 
 [target.'cfg(not(target_os = "android"))'.dependencies]
-winit = "0.30.2"
+winit = "0.30.5"
 
 [target.'cfg(target_os = "android")'.dependencies]
-winit = { version = "0.30.2", features = ["android-native-activity"] }
+winit = { version = "0.30.5", features = ["android-native-activity"] }
 ndk-context = "0.1.1"
 jni = "0.21.1"

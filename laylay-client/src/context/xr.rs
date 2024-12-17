@@ -28,6 +28,7 @@ impl XrContext {
         tracing::info!("aviable exntensions: {:?}", aviable);
 
         let xr_app_info = openxr::ApplicationInfo {
+            api_version: openxr::Version::new(1, 0, 0),
             application_name: "LayLay",
             application_version: 1,
             engine_name: "LayLay",

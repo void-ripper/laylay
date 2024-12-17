@@ -9,12 +9,20 @@ use std::{
 use gltf::Primitive;
 use tokio::sync::{Mutex, RwLock};
 use wgpu::{
-    util::DeviceExt, Buffer, BufferAddress, BufferUsages, Device, VertexAttribute, VertexBufferLayout, VertexFormat, VertexStepMode
+    util::DeviceExt, Buffer, BufferAddress, BufferUsages, Device, VertexAttribute,
+    VertexBufferLayout, VertexFormat, VertexStepMode,
 };
 
-use crate::math::matrix::{Matrix, IDENTITY};
+use crate::{
+    app::CTX,
+    math::matrix::{Matrix, IDENTITY},
+};
 
-use super::{material::{Material, DEFAULT}, model::Vertex, node::NodePtr};
+use super::{
+    material::{Material, DEFAULT},
+    model::Vertex,
+    node::NodePtr,
+};
 
 static ID_POOL: AtomicU32 = AtomicU32::new(1);
 
@@ -38,7 +46,7 @@ pub struct Drawable {
 }
 
 impl Drawable {
-    pub fn new(device: &Device, prim: &Primitive, doc: &gltf::Gltf) -> DrawablePtr {
+    pub async fn new<'a>(prim: &Primitive<'a>, doc: &gltf::Gltf) -> DrawablePtr {
         let id = ID_POOL.fetch_add(1, Ordering::SeqCst);
 
         let reader = prim.reader(|_| doc.blob.as_ref().map(|a| a.as_slice()));
@@ -61,32 +69,43 @@ impl Drawable {
             }
         }
 
+        let ctx = unsafe { CTX.clone().unwrap() };
+        let state = ctx.state.lock().await;
+
         let instance_matrices = Vec::new();
         let instance_materials = Vec::new();
-        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Instance Buffer"),
-            contents: bytemuck::cast_slice(&instance_matrices),
-            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-        });
-
-        let instance_material_buffer =
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Instance Material Buffer"),
-                contents: bytemuck::cast_slice(&instance_materials),
+        let instance_buffer = state
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Instance Buffer"),
+                contents: bytemuck::cast_slice(&instance_matrices),
                 usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
             });
 
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&vertices),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
+        let instance_material_buffer =
+            state
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Instance Material Buffer"),
+                    contents: bytemuck::cast_slice(&instance_materials),
+                    usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+                });
 
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(&indices),
-            usage: wgpu::BufferUsages::INDEX,
-        });
+        let vertex_buffer = state
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Vertex Buffer"),
+                contents: bytemuck::cast_slice(&vertices),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+
+        let index_buffer = state
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Index Buffer"),
+                contents: bytemuck::cast_slice(&indices),
+                usage: wgpu::BufferUsages::INDEX,
+            });
 
         Arc::new(Self {
             id,
@@ -105,29 +124,36 @@ impl Drawable {
     }
 
     pub async fn add_node(&self, node: NodePtr) {
+        let ctx = unsafe { CTX.clone().unwrap() };
+        let state = ctx.state.lock().await;
         let mut insts = self.instances.lock().await;
         insts.nodes.insert(node.id, node);
         insts.instance_materials.push(DEFAULT);
         insts.instance_matrices.push(IDENTITY);
-        insts.instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Instance Buffer"),
-            contents: bytemuck::cast_slice(&insts.instance_matrices),
-            usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-        });
+        insts.instance_buffer =
+            state
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Instance Buffer"),
+                    contents: bytemuck::cast_slice(&insts.instance_matrices),
+                    usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+                });
 
         insts.instance_material_buffer =
-            device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("Instance Material Buffer"),
-                contents: bytemuck::cast_slice(&insts.instance_materials),
-                usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
-            });
+            state
+                .device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Instance Material Buffer"),
+                    contents: bytemuck::cast_slice(&insts.instance_materials),
+                    usage: BufferUsages::VERTEX | BufferUsages::COPY_DST,
+                });
     }
 
     pub async fn remove_node(&self, node: NodePtr) {}
 
     pub async fn update(&self) {
         let mut insts = self.instances.lock().await;
-        // TODO this is very ugly
+        // TODO: this is very ugly
         for (id, n) in insts.nodes.clone().values().enumerate() {
             insts.instance_matrices[id] = *n.world_transform.read().await;
             insts.instance_materials[id] = n.material.lock().await.unwrap();

@@ -7,13 +7,13 @@ edition.workspace = true
 
 [dependencies]
 aes = "0.8.4"
-borsh = { version = "1.5.1", features = ["derive", "bytes"] }
-bytes = "1.6.0"
+borsh = { version = "1.5.3", features = ["derive", "bytes"] }
+bytes = "1.9.0"
 cbc = { version = "0.1.2", features = ["std"] }
-k256 = { version = "0.13.3", features = ["ecdh"] }
+k256 = { version = "0.13.4", features = ["ecdh"] }
 rand = "0.8.5"
-sysinfo = "0.30.12"
-tokio = { version = "1.38.0", features = ["full", "parking_lot"] }
+sysinfo = "0.33.0"
+tokio = { version = "1.42.0", features = ["full", "parking_lot"] }
 
 [target.'cfg(target_os = "android")'.dependencies]
 ndk-context = "0.1.1"

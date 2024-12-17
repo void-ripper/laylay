@@ -10,6 +10,8 @@ use tracing::{
     span, Subscriber,
 };
 
+use crate::app::CTX;
+
 pub struct Logger {
     span_id_pool: AtomicU64,
     runtime: Arc<Runtime>,
@@ -27,9 +29,10 @@ impl Visit for FieldCollect {
 }
 
 impl Logger {
-    pub fn new(runtime: Arc<Runtime>, txch: Sender<Message>) -> Self {
+    pub fn new(txch: Sender<Message>) -> Self {
+        let ctx = unsafe { CTX.clone().unwrap() };
         Self {
-            runtime,
+            runtime: ctx.runtime.clone(),
             txch,
             span_id_pool: AtomicU64::new(1),
         }

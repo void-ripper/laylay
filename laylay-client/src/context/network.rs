@@ -33,7 +33,7 @@ impl Network {
             let (mut rx, mut tx) = stream.into_split();
             let (txch, mut rxch) = mpsc::channel::<Message>(10);
 
-            tracing::subscriber::set_global_default(Logger::new(runtime, txch))?;
+            tracing::subscriber::set_global_default(Logger::new(txch))?;
 
             let shared0 = shared.clone();
             tokio::spawn(async move {
@@ -56,7 +56,7 @@ impl Network {
                 }
             });
         }
-        
+
         Ok(Self {})
     }
 }
