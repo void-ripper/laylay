@@ -30,7 +30,7 @@ impl Visit for FieldCollect {
 
 impl Logger {
     pub fn new(txch: Sender<Message>) -> Self {
-        let ctx = unsafe { CTX.clone().unwrap() };
+        let ctx = CTX.get().unwrap();
         Self {
             runtime: ctx.runtime.clone(),
             txch,

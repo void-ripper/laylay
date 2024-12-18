@@ -69,7 +69,7 @@ impl Drawable {
             }
         }
 
-        let ctx = unsafe { CTX.clone().unwrap() };
+        let ctx = CTX.get().unwrap();
         let state = ctx.state.lock().await;
 
         let instance_matrices = Vec::new();
@@ -124,7 +124,7 @@ impl Drawable {
     }
 
     pub async fn add_node(&self, node: NodePtr) {
-        let ctx = unsafe { CTX.clone().unwrap() };
+        let ctx = CTX.get().unwrap();
         let state = ctx.state.lock().await;
         let mut insts = self.instances.lock().await;
         insts.nodes.insert(node.id, node);
@@ -150,15 +150,6 @@ impl Drawable {
     }
 
     pub async fn remove_node(&self, node: NodePtr) {}
-
-    pub async fn update(&self) {
-        let mut insts = self.instances.lock().await;
-        // TODO: this is very ugly
-        for (id, n) in insts.nodes.clone().values().enumerate() {
-            insts.instance_matrices[id] = *n.world_transform.read().await;
-            insts.instance_materials[id] = n.material.lock().await.unwrap();
-        }
-    }
 
     pub fn instace_desc() -> VertexBufferLayout<'static> {
         VertexBufferLayout {

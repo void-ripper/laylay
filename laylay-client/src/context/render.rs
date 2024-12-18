@@ -244,11 +244,15 @@ impl<'w> RenderContext<'w> {
             render_pass.set_bind_group(1, &self.light_bind_group, &[]);
 
             for drw in drawables.values() {
-                let instances = drw.instances.lock().await;
+                let mut instances = drw.instances.lock().await;
                 let inst_count = instances.nodes.len();
 
                 if inst_count > 0 {
-                    drw.update().await;
+                    // TODO: this is very ugly
+                    for (id, n) in instances.nodes.clone().values().enumerate() {
+                        instances.instance_matrices[id] = *n.world_transform.read().await;
+                        instances.instance_materials[id] = n.material.lock().await.unwrap();
+                    }
                     render_pass.set_vertex_buffer(0, drw.vertex_buffer.slice(..));
                     render_pass.set_vertex_buffer(1, instances.instance_buffer.slice(..));
                     render_pass.set_vertex_buffer(2, instances.instance_material_buffer.slice(..));

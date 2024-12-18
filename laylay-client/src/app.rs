@@ -1,6 +1,6 @@
 use std::{
     path::PathBuf,
-    sync::{Arc, Weak},
+    sync::{Arc, OnceLock, Weak},
 };
 
 use laylay_common::{Info, Message, SecretKey, Version};
@@ -34,7 +34,7 @@ use crate::{
 
 //     file.write_all(msg.as_bytes()).unwrap();
 // }
-pub static mut CTX: Option<Arc<Context<'static>>> = None;
+pub static CTX: OnceLock<Arc<Context<'static>>> = OnceLock::new();
 
 pub struct Context<'a> {
     me: Weak<Context<'a>>,
@@ -109,7 +109,7 @@ impl ApplicationHandler for App {
             state: Mutex::new(state),
             scene: RwLock::new(None),
         });
-        unsafe { CTX = Some(ctx.clone()) };
+        CTX.set(ctx.clone());
 
         self.runtime.block_on(async {
             let scene = Scene::new(aspect).await;
@@ -154,22 +154,27 @@ impl ApplicationHandler for App {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                let ctx = unsafe { CTX.clone().unwrap() };
+                let ctx = CTX.get().unwrap();
                 let _delta = self.counter.tick();
+
+                tracing::debug!("redraw-requested");
 
                 self.runtime.block_on(async {
                     if let Some(scene) = &*ctx.scene.read().await {
                         scene.update().await;
 
+                        tracing::debug!("redraw-requested render");
                         if let Err(e) = ctx.state.lock().await.render(scene.clone()).await {
                             tracing::error!("{e}");
                         }
                     }
+
+                    tracing::debug!("redraw-requested request_redraw");
                     ctx.state.lock().await.window.request_redraw();
                 });
             }
             WindowEvent::Resized(new_size) => {
-                let ctx = unsafe { CTX.clone().unwrap() };
+                let ctx = CTX.get().unwrap();
                 self.runtime.block_on(async {
                     ctx.state.lock().await.resize(new_size);
 
@@ -184,7 +189,7 @@ impl ApplicationHandler for App {
                 event,
                 is_synthetic: _,
             } => {
-                let ctx = unsafe { CTX.clone().unwrap() };
+                let ctx = CTX.get().unwrap();
                 self.runtime.block_on(async {
                     let scene = ctx.scene.read().await;
 
